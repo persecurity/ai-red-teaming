@@ -60,9 +60,13 @@ Sends the same prompt multiple times to check whether the responses stay consist
 ```bash
 go run ./cmd/determinism-probe "Return exactly READY" 10 5
 go run ./cmd/determinism-probe "Return exactly READY" 50 120 --concurrent -o results.csv
+go run ./cmd/determinism-probe "Return exactly READY" 10 5 --timeout 10m
 ```
 
 `MESSAGE` is the prompt to send, `NUM_REQUESTS` is how many times to send it, and the final value sets the number of requests per minute. By default, each request waits for the previous response. Use `--concurrent` to maintain the selected rate when responses are slow.
+The per-request timeout defaults to five minutes and can be changed with
+`--timeout`. The command exits unsuccessfully if request failures prevent a
+valid determinism measurement, but still writes the CSV report.
 
 ### `rate-limit-probe`
 
@@ -71,9 +75,15 @@ Sends `Hello` repeatedly and stops launching requests after it detects HTTP `429
 ```bash
 go run ./cmd/rate-limit-probe 50 120
 go run ./cmd/rate-limit-probe 100 60 -u http://localhost:5001/api/chat
+go run ./cmd/rate-limit-probe 50 120 --timeout 10m
 ```
 
 Arguments are the number of requests and requests per minute. Start with a low rate and increase it gradually.
+The per-request timeout defaults to five minutes. The probe stops scheduling new
+requests after detecting a rate-limit response, waits for requests already in
+flight, and reports configured, launched, completed, successful, failed, and
+rate-limited counts separately. It does not claim a threshold when failures or
+timeouts make the measurement incomplete.
 
 ## Expected chat API
 
@@ -94,6 +104,8 @@ They expect a JSON response similar to:
 - Run commands from this directory so output files are easy to find.
 - CSV reports may contain sensitive prompts and model output. Store them safely.
 - High request rates can affect service availability and cost.
+- Local models can respond slowly. Increase `--timeout` when responses approach
+  the default five-minute limit.
 - Use `go run ./cmd/COMMAND --help` to see every option.
 
 ## Origin and Go rewrite

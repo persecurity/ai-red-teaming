@@ -22,7 +22,10 @@ import (
 	"unicode"
 )
 
-const defaultURL = "http://localhost:5001/api/chat"
+const (
+	defaultURL            = "http://localhost:5001/api/chat"
+	defaultRequestTimeout = 5 * time.Minute
+)
 
 type config struct {
 	message     string
@@ -31,6 +34,7 @@ type config struct {
 	url         string
 	outputFile  string
 	concurrent  bool
+	timeout     time.Duration
 }
 
 type chatData struct {
@@ -83,18 +87,20 @@ Options:
   -u, --url URL        Chat API endpoint URL (default: %s)
   -o, --output FILE    Output CSV file (default: probe_results_<mode>_<timestamp>.csv)
   -c, --concurrent     Send at the specified rate regardless of response time
+  -t, --timeout DURATION
+                       Per-request timeout (default: %s)
   -h, --help           Show this help message
 
 Examples:
   %s "Explain the principle of least privilege in one sentence." 10 5
   %s "Return exactly the word READY." 50 120 --concurrent -o results.csv
   %s "List three benefits of unit testing." 20 10 -u http://localhost:5001/api/chat
-`, program, defaultURL, program, program, program)
+`, program, defaultURL, defaultRequestTimeout, program, program, program)
 }
 
 // parseArgs accepts options before or after positional arguments.
 func parseArgs(args []string) (config, error) {
-	cfg := config{url: defaultURL}
+	cfg := config{url: defaultURL, timeout: defaultRequestTimeout}
 	positionals := make([]string, 0, 3)
 	optionsEnded := false
 
@@ -130,7 +136,7 @@ func parseArgs(args []string) (config, error) {
 				return cfg, errors.New("option --concurrent does not take a value")
 			}
 			cfg.concurrent = true
-		case "-u", "--url", "-o", "--output":
+		case "-u", "--url", "-o", "--output", "-t", "--timeout":
 			value, err := valueFor(&index, option, inline, hasEquals)
 			if err != nil {
 				return cfg, err
@@ -140,6 +146,11 @@ func parseArgs(args []string) (config, error) {
 				cfg.url = value
 			case "-o", "--output":
 				cfg.outputFile = value
+			case "-t", "--timeout":
+				cfg.timeout, err = time.ParseDuration(value)
+				if err != nil {
+					return cfg, fmt.Errorf("invalid timeout value %q", value)
+				}
 			}
 		default:
 			if strings.HasPrefix(arg, "-") {
@@ -168,6 +179,9 @@ func parseArgs(args []string) (config, error) {
 	}
 	if cfg.rate <= 0 {
 		return cfg, errors.New("rate must be positive")
+	}
+	if cfg.timeout <= 0 {
+		return cfg, errors.New("timeout must be positive")
 	}
 	if cfg.outputFile == "" {
 		mode := "sequential"
@@ -402,6 +416,7 @@ func printHeader(cfg config, delay time.Duration, concurrent bool) {
 	fmt.Printf("Message:        %s\n", cfg.message)
 	fmt.Printf("Requests:       %d\n", cfg.numRequests)
 	fmt.Printf("Rate:           %g req/min (%.3fs between requests)\n", cfg.rate, delay.Seconds())
+	fmt.Printf("Timeout:        %s per request\n", cfg.timeout)
 	fmt.Printf("Output:         %s\n", cfg.outputFile)
 	fmt.Println(strings.Repeat("=", 60))
 	fmt.Println()
@@ -429,7 +444,7 @@ func runProbe(cfg config) error {
 	}
 	printHeader(cfg, delay, false)
 
-	client := &http.Client{Timeout: 60 * time.Second}
+	client := &http.Client{Timeout: cfg.timeout}
 	results := make([]probeResult, 0, cfg.numRequests)
 	rateLimited := false
 	rateLimitThreshold := 0.0
@@ -509,6 +524,9 @@ func runProbe(cfg config) error {
 	}
 	fmt.Println("Results saved successfully!")
 	fmt.Println()
+	if len(results)-successfulRequests > 0 && !rateLimited {
+		return errors.New("probe completed with failed requests; determinism could not be measured")
+	}
 	return nil
 }
 
@@ -519,7 +537,7 @@ func runProbeConcurrent(cfg config) error {
 	}
 	printHeader(cfg, delay, true)
 
-	client := &http.Client{Timeout: 60 * time.Second}
+	client := &http.Client{Timeout: cfg.timeout}
 	results := make([]probeResult, 0, cfg.numRequests)
 	var resultsMutex sync.Mutex
 	var rateLimited atomic.Bool
@@ -637,6 +655,9 @@ func runProbeConcurrent(cfg config) error {
 	}
 	fmt.Println("Results saved successfully!")
 	fmt.Println()
+	if len(results)-successfulRequests > 0 && !rateLimited.Load() {
+		return errors.New("probe completed with failed requests; determinism could not be measured")
+	}
 	return nil
 }
 

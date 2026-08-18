@@ -8,28 +8,33 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"time"
 )
 
-const defaultURL = "http://localhost:5001/api/chat"
+const (
+	defaultURL            = "http://localhost:5001/api/chat"
+	defaultRequestTimeout = 5 * time.Minute
+)
 
 type config struct {
 	numRequests int
 	rate        float64
 	url         string
+	timeout     time.Duration
 }
 
 type requestResult struct {
 	requestNumber int
+	success       bool
 	rateLimited   bool
 	statusCode    int
+	errorText     string
 	responseTime  time.Duration
 	timestamp     time.Time
 }
@@ -39,6 +44,16 @@ type rateLimitInfo struct {
 	threshold     float64
 	statusCode    int
 	elapsedTime   time.Duration
+}
+
+type rateProbeSummary struct {
+	configured  int
+	launched    int
+	completed   int
+	successful  int
+	failed      int
+	rateLimited int
+	detected    bool
 }
 
 func usage(w io.Writer, program string) {
@@ -53,18 +68,20 @@ Arguments:
 
 Options:
   -u, --url URL      Chat API endpoint URL (default: %s)
+  -t, --timeout DURATION
+                     Per-request timeout (default: %s)
   -h, --help         Show this help message
 
 Examples:
   %s 50 120
   %s 200 150
   %s 100 100 -u http://example.com/api/chat
-`, program, defaultURL, program, program, program)
+`, program, defaultURL, defaultRequestTimeout, program, program, program)
 }
 
 // parseArgs accepts options before or after the positional arguments.
 func parseArgs(args []string) (config, error) {
-	cfg := config{url: defaultURL}
+	cfg := config{url: defaultURL, timeout: defaultRequestTimeout}
 	positionals := make([]string, 0, 2)
 
 	valueFor := func(index *int, option, inline string, hasEquals bool) (string, error) {
@@ -86,12 +103,19 @@ func parseArgs(args []string) (config, error) {
 		case "-h", "--help":
 			usage(os.Stdout, filepath.Base(os.Args[0]))
 			os.Exit(0)
-		case "-u", "--url":
+		case "-u", "--url", "-t", "--timeout":
 			value, err := valueFor(&index, option, inline, hasEquals)
 			if err != nil {
 				return cfg, err
 			}
-			cfg.url = value
+			if option == "-u" || option == "--url" {
+				cfg.url = value
+			} else {
+				cfg.timeout, err = time.ParseDuration(value)
+				if err != nil {
+					return cfg, fmt.Errorf("invalid timeout value %q", value)
+				}
+			}
 		default:
 			if strings.HasPrefix(arg, "-") {
 				return cfg, fmt.Errorf("unknown option: %s", arg)
@@ -119,45 +143,69 @@ func parseArgs(args []string) (config, error) {
 	if cfg.rate <= 0 {
 		return cfg, errors.New("rate must be positive")
 	}
+	if cfg.timeout <= 0 {
+		return cfg, errors.New("timeout must be positive")
+	}
 	return cfg, nil
 }
 
-func sendChatMessage(client *http.Client, url, message string) (bool, int) {
+func sendChatMessage(client *http.Client, url, message string) (bool, bool, int, string) {
 	payload, err := json.Marshal(struct {
 		Message        string  `json:"message"`
 		ConversationID *string `json:"conversation_id"`
 	}{Message: message})
 	if err != nil {
-		return false, 0
+		return false, false, 0, err.Error()
 	}
 
 	request, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(payload))
 	if err != nil {
-		return false, 0
+		return false, false, 0, err.Error()
 	}
 	request.Header.Set("Content-Type", "application/json")
 
 	response, err := client.Do(request)
 	if err != nil {
-		return false, 0
+		var networkError net.Error
+		if errors.As(err, &networkError) && networkError.Timeout() {
+			return false, false, 0, "Request timeout"
+		}
+		return false, false, 0, "Connection error: " + err.Error()
 	}
 	defer response.Body.Close()
 
-	rateLimited := response.StatusCode == http.StatusTooManyRequests
-	if !rateLimited && response.StatusCode >= http.StatusOK && response.StatusCode < http.StatusMultipleChoices {
-		var data struct {
-			Error string `json:"error"`
-		}
-		if err := json.NewDecoder(response.Body).Decode(&data); err == nil {
-			errorText := strings.ToLower(data.Error)
-			rateLimited = strings.Contains(errorText, "rate limit") || strings.Contains(errorText, "too many requests")
-		}
+	var data struct {
+		Success *bool  `json:"success"`
+		Error   string `json:"error"`
 	}
-	return rateLimited, response.StatusCode
+	if err := json.NewDecoder(response.Body).Decode(&data); err != nil && response.StatusCode != http.StatusTooManyRequests {
+		return false, false, response.StatusCode, "Invalid JSON response"
+	}
+	lowerError := strings.ToLower(data.Error)
+	rateLimited := response.StatusCode == http.StatusTooManyRequests ||
+		strings.Contains(lowerError, "rate limit") ||
+		strings.Contains(lowerError, "too many requests")
+	if rateLimited {
+		return false, true, response.StatusCode, data.Error
+	}
+	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+		if data.Error == "" {
+			data.Error = response.Status
+		}
+		return false, false, response.StatusCode, data.Error
+	}
+	if data.Success != nil && !*data.Success {
+		if data.Error == "" {
+			data.Error = "API reported an unsuccessful response"
+		}
+		return false, false, response.StatusCode, data.Error
+	}
+	return true, false, response.StatusCode, ""
 }
 
-func testRateLimit(cfg config) {
+func testRateLimit(cfg config) (rateProbeSummary, error) {
 	delay := time.Duration(float64(time.Minute) / cfg.rate)
+	summary := rateProbeSummary{configured: cfg.numRequests}
 
 	fmt.Println("Rate Limit Probe")
 	fmt.Println(strings.Repeat("=", 60))
@@ -165,122 +213,128 @@ func testRateLimit(cfg config) {
 	fmt.Println("Message:        Hello")
 	fmt.Printf("Requests:       %d\n", cfg.numRequests)
 	fmt.Printf("Rate:           %g req/min (%.3fs between requests)\n", cfg.rate, delay.Seconds())
+	fmt.Printf("Timeout:        %s per request\n", cfg.timeout)
 	fmt.Println(strings.Repeat("=", 60))
 	fmt.Println()
 
-	client := &http.Client{Timeout: 60 * time.Second}
+	client := &http.Client{Timeout: cfg.timeout}
 	results := make([]requestResult, 0, cfg.numRequests)
-	var resultsMutex sync.Mutex
-	var rateLimited atomic.Bool
-	var stopLaunching atomic.Bool
 	var limitInfo rateLimitInfo
 	startTime := time.Now()
-	doneChannels := make([]<-chan struct{}, 0, cfg.numRequests)
+	resultChannel := make(chan requestResult, cfg.numRequests)
+	launchTimer := time.NewTimer(0)
+	defer launchTimer.Stop()
+	launching := true
 
-	for requestNumber := 1; requestNumber <= cfg.numRequests; requestNumber++ {
-		if stopLaunching.Load() {
-			break
-		}
-
-		scheduledTime := startTime.Add(time.Duration(requestNumber-1) * delay)
-		done := make(chan struct{})
-		doneChannels = append(doneChannels, done)
-
-		go func(number int, scheduled time.Time) {
-			defer close(done)
-			if wait := time.Until(scheduled); wait > 0 {
-				time.Sleep(wait)
+	for launching || summary.completed < summary.launched {
+		select {
+		case <-launchTimer.C:
+			if summary.detected || summary.launched >= cfg.numRequests {
+				launching = false
+				continue
+			}
+			summary.launched++
+			requestNumber := summary.launched
+			go func(number int) {
+				requestStart := time.Now()
+				success, isRateLimited, statusCode, errorText := sendChatMessage(client, cfg.url, "Hello")
+				responseTime := time.Since(requestStart)
+				resultChannel <- requestResult{
+					requestNumber: number,
+					success:       success,
+					rateLimited:   isRateLimited,
+					statusCode:    statusCode,
+					errorText:     errorText,
+					responseTime:  responseTime,
+					timestamp:     time.Now(),
+				}
+			}(requestNumber)
+			if summary.launched < cfg.numRequests && !summary.detected {
+				launchTimer.Reset(delay)
+			} else {
+				launching = false
 			}
 
-			requestStart := time.Now()
-			isRateLimited, statusCode := sendChatMessage(client, cfg.url, "Hello")
-			responseTime := time.Since(requestStart)
+		case result := <-resultChannel:
+			results = append(results, result)
+			summary.completed++
+			switch {
+			case result.rateLimited:
+				summary.rateLimited++
+				fmt.Printf("Request %d: RATE LIMITED (status: %d, %.0fms)\n", result.requestNumber, result.statusCode, result.responseTime.Seconds()*1000)
+			case result.success:
+				summary.successful++
+				fmt.Printf("Request %d: OK (%.0fms)\n", result.requestNumber, result.responseTime.Seconds()*1000)
+			default:
+				summary.failed++
+				fmt.Printf("Request %d: ERROR (status: %d, %s)\n", result.requestNumber, result.statusCode, result.errorText)
+			}
 
-			resultsMutex.Lock()
-			results = append(results, requestResult{
-				requestNumber: number,
-				rateLimited:   isRateLimited,
-				statusCode:    statusCode,
-				responseTime:  responseTime,
-				timestamp:     time.Now(),
-			})
-			resultsMutex.Unlock()
-
-			if isRateLimited && rateLimited.CompareAndSwap(false, true) {
-				stopLaunching.Store(true)
+			if result.rateLimited && !summary.detected {
+				summary.detected = true
+				if launching {
+					launching = false
+					if !launchTimer.Stop() {
+						select {
+						case <-launchTimer.C:
+						default:
+						}
+					}
+				}
 				elapsedTime := time.Since(startTime)
 				actualRate := 0.0
 				if elapsedTime > 0 {
-					actualRate = float64(number) / elapsedTime.Seconds() * 60
+					actualRate = float64(result.requestNumber) / elapsedTime.Seconds() * 60
 				}
-				resultsMutex.Lock()
 				limitInfo = rateLimitInfo{
-					requestNumber: number,
+					requestNumber: result.requestNumber,
 					threshold:     actualRate,
-					statusCode:    statusCode,
+					statusCode:    result.statusCode,
 					elapsedTime:   elapsedTime,
 				}
-				resultsMutex.Unlock()
-				fmt.Printf("\nRATE LIMIT DETECTED at request %d (after %.2fs)\n", number, elapsedTime.Seconds())
+				fmt.Printf("\nRATE LIMIT DETECTED at request %d (after %.2fs); stopping new launches\n", result.requestNumber, elapsedTime.Seconds())
 			}
-		}(requestNumber, scheduledTime)
-
-		// Give completed requests periodic opportunities to stop further launches.
-		if requestNumber%10 == 0 {
-			time.Sleep(10 * time.Millisecond)
-		}
-	}
-
-	fmt.Printf("Launched %d request goroutines...\n", len(doneChannels))
-
-	// Match the original script's per-request join timeout. Goroutines that are
-	// still pending after their timeout do not block summary generation.
-	for _, done := range doneChannels {
-		select {
-		case <-done:
-		case <-time.After(30 * time.Second):
 		}
 	}
 
 	totalTime := time.Since(startTime)
-	resultsMutex.Lock()
-	totalSent := len(results)
-	rateLimitedCount := 0
-	successfulCount := 0
-	for _, result := range results {
-		if result.rateLimited {
-			rateLimitedCount++
-		} else if result.statusCode == http.StatusOK {
-			successfulCount++
-		}
-	}
-	info := limitInfo
-	resultsMutex.Unlock()
 
 	fmt.Println()
 	fmt.Println(strings.Repeat("=", 60))
 	fmt.Println("Test Results")
 	fmt.Println(strings.Repeat("=", 60))
-	fmt.Printf("Total requests sent:     %d\n", totalSent)
-	fmt.Printf("Successful responses:    %d\n", successfulCount)
-	fmt.Printf("Rate limited responses:  %d\n", rateLimitedCount)
+	fmt.Printf("Requests configured:     %d\n", summary.configured)
+	fmt.Printf("Requests launched:       %d\n", summary.launched)
+	fmt.Printf("Requests completed:      %d\n", summary.completed)
+	fmt.Printf("Successful responses:    %d\n", summary.successful)
+	fmt.Printf("Failed responses:        %d\n", summary.failed)
+	fmt.Printf("Rate limited responses:  %d\n", summary.rateLimited)
 	fmt.Printf("Total time:              %.2fs\n", totalTime.Seconds())
-	fmt.Printf("Average rate achieved:   %.2f req/min\n", float64(totalSent)/totalTime.Seconds()*60)
+	fmt.Printf("Average launch rate:     %.2f req/min\n", float64(summary.launched)/totalTime.Seconds()*60)
 
-	if rateLimited.Load() {
+	if summary.detected {
 		fmt.Println()
 		fmt.Println("RATE LIMIT THRESHOLD DETECTED:")
-		fmt.Printf("   First rate limit at:  Request #%d\n", info.requestNumber)
-		fmt.Printf("   Time to rate limit:   %.2fs\n", info.elapsedTime.Seconds())
-		fmt.Printf("   Calculated threshold: ~%.2f req/min\n", info.threshold)
-		fmt.Printf("   Status code:          %d\n", info.statusCode)
-	} else {
+		fmt.Printf("   First rate limit at:  Request #%d\n", limitInfo.requestNumber)
+		fmt.Printf("   Time to rate limit:   %.2fs\n", limitInfo.elapsedTime.Seconds())
+		fmt.Printf("   Calculated threshold: ~%.2f req/min\n", limitInfo.threshold)
+		fmt.Printf("   Status code:          %d\n", limitInfo.statusCode)
+	} else if summary.completed == summary.configured && summary.failed == 0 {
 		fmt.Println()
 		fmt.Println("NO RATE LIMITING DETECTED")
-		fmt.Printf("   All %d requests completed successfully\n", totalSent)
+		fmt.Printf("   All %d requests completed successfully\n", summary.completed)
 		fmt.Printf("   Rate limit is above %g req/min\n", cfg.rate)
+	} else {
+		fmt.Println()
+		fmt.Println("RATE-LIMIT THRESHOLD COULD NOT BE DETERMINED")
+		fmt.Println("   One or more requests failed or did not complete.")
 	}
 	fmt.Println()
+
+	if !summary.detected && (summary.completed != summary.configured || summary.failed > 0) {
+		return summary, errors.New("incomplete probe results; rate-limit threshold could not be determined")
+	}
+	return summary, nil
 }
 
 func main() {
@@ -290,5 +344,8 @@ func main() {
 		usage(os.Stderr, filepath.Base(os.Args[0]))
 		os.Exit(2)
 	}
-	testRateLimit(cfg)
+	if _, err := testRateLimit(cfg); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
 }
