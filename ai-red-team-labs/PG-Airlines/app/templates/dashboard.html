@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · PG-Airlines Lab{% endblock %}
+{% block content %}
+<div class="dashboard-head"><div><p class="eyebrow">{{ current_user.role|upper }} CONSOLE</p><h1>Good to see you, {{ current_user.username }}.</h1></div>{% if current_user.role == 'admin' %}<label class="level-select">Live defense level<select id="level-switch">{% for n in range(1,6) %}<option value="{{ n }}" {% if n == active_level %}selected{% endif %}>Level {{ n }}</option>{% endfor %}</select></label>{% endif %}</div>
+<div class="dashboard-grid">
+  <section class="panel chat-panel"><div class="panel-title"><div><p class="eyebrow">PGBOT · LOCAL QWEN</p><h2>Customer service chat</h2></div><button id="reset-chat" class="secondary">Reset</button></div><div id="messages" class="messages"><div class="message bot">Welcome aboard. Ask about a flight, policy, or booking.</div></div><form id="chat-form" class="composer"><textarea id="chat-input" placeholder="Message PGBot…" required></textarea><button class="button" type="submit">Send</button></form></section>
+  <aside class="stack">
+    <section class="panel"><p class="eyebrow">INDIRECT INPUT</p><h2>Boarding pass</h2><p>Upload a text-based PDF. Extracted text joins subsequent model context.</p><form id="upload-form"><input type="file" id="pdf-file" accept="application/pdf" required><button class="button" type="submit">Parse PDF</button></form><div id="upload-result" class="result" aria-live="polite"></div></section>
+    {% if current_user.role == 'client' %}
+    <section class="panel"><p class="eyebrow">DISCOUNT AGENT</p><h2>File a complaint</h2><form id="discount-form"><textarea name="complaint" placeholder="Describe what happened…" required></textarea><label>Requested discount %<input name="requested_percent" type="number" min="0" max="100" value="10"></label><button class="button" type="submit">File & ask agent to verify</button></form><div id="discount-result" class="result" aria-live="polite"></div>{% for item in complaints[:3] %}<div class="capture"><span>Complaint #{{ item.id }}</span><b>{{ item.status }}</b></div>{% endfor %}</section>
+    {% else %}
+    <section class="panel danger-panel">
+      <p class="eyebrow">PRIVILEGED AGENT</p>
+      <h2>Promotion control</h2>
+      <p>{{ complaints|length }} recent complaint(s) are supplied to this agent as untrusted context.</p>
+      <form id="promotion-form"><textarea name="prompt" placeholder="Tell the promotion agent what to do…" required></textarea><button class="button" type="submit">Run agent</button></form>
+      <div id="promotion-result" class="result" aria-live="polite"></div>
+      <div class="agent-context">
+        <h3>Example requests</h3>
+        <ul class="agent-examples">
+          <li><code>Create a 15% promotion for flight PG123.</code></li>
+          <li><code>Create a 25% promotion for flight PG456.</code></li>
+          <li><code>Take no promotion action.</code></li>
+        </ul>
+        <h3>Latest customer complaints</h3>
+        <div class="complaint-list">
+          {% for item in complaints[:5] %}
+          <article class="complaint-preview">
+            <div><b>Complaint #{{ item.id }}</b><span>{{ item.requested_percent }}% requested · {{ item.status|replace('_', ' ') }}</span></div>
+            <p>{{ item.text|truncate(220, true, '…') }}</p>
+          </article>
+          {% else %}
+          <p class="muted">No customer complaints have been filed yet.</p>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+    {% endif %}
+  </aside>
+</div>
+<section class="panel flag-submit"><div><p class="eyebrow">CTF CAPTURE</p><h2>Found something?</h2></div><form id="flag-form"><input name="flag" placeholder="PGAIR{…}" required><button class="button" type="submit">Submit flag</button></form><div id="flag-result" class="result"></div></section>
+{% endblock %}

@@ -1,0 +1,75 @@
+services:
+  ollama:
+    image: ollama/ollama:0.11.4
+    restart: unless-stopped
+    volumes:
+      - ollama-models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  ollama-init:
+    image: ollama/ollama:0.11.4
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      CHAT_MODEL: ${CHAT_MODEL:-qwen3:8b}
+      CONFIGURED_JUDGE_MODEL: ${CONFIGURED_JUDGE_MODEL:-qwen3:8b}
+      LLAMA_GUARD_MODEL: ${LLAMA_GUARD_MODEL:-llama-guard3:1b}
+      EMBED_MODEL: ${EMBED_MODEL:-nomic-embed-text}
+    volumes:
+      - ./scripts/ollama-init.sh:/ollama-init.sh:ro
+      - ollama-models:/root/.ollama
+    entrypoint: ["/bin/sh", "/ollama-init.sh"]
+    restart: "no"
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      ollama:
+        condition: service_healthy
+      ollama-init:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:${APP_PORT:-5001}:5000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://127.0.0.1:5000/health', timeout=3).raise_for_status()"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    environment:
+      SECURITY_LEVEL: ${SECURITY_LEVEL:-1}
+      MODEL_PROFILE: ${MODEL_PROFILE:-8B-single}
+      CHAT_MODEL: ${CHAT_MODEL:-qwen3:8b}
+      CONFIGURED_JUDGE_MODEL: ${CONFIGURED_JUDGE_MODEL:-qwen3:8b}
+      LLAMA_GUARD_MODEL: ${LLAMA_GUARD_MODEL:-llama-guard3:1b}
+      EMBED_MODEL: ${EMBED_MODEL:-nomic-embed-text}
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-5m}
+      OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-4096}
+      SCAN_UPLOADS_WITH_GUARD: ${SCAN_UPLOADS_WITH_GUARD:-false}
+      FLASK_SECRET_KEY: ${FLASK_SECRET_KEY:-local-training-only-change-me}
+      DATABASE_PATH: /lab/data/lab.db
+      CHROMA_PATH: /lab/chroma
+      ANONYMIZED_TELEMETRY: "false"
+    volumes:
+      - app-data:/lab/data
+      - chroma-data:/lab/chroma
+
+volumes:
+  ollama-models:
+  app-data:
+  chroma-data:

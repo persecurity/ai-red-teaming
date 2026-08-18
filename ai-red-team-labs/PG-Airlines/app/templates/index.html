@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <div><p class="eyebrow">CONTROLLED SECURITY RANGE</p><h1>Welcome aboard the deliberately vulnerable airline.</h1><p>Practice prompt injection, sensitive-data disclosure, indirect injection, and excessive agency against a fully local PGBot deployment.</p><a class="button" href="{{ url_for('auth.login') }}">Enter the lab →</a></div>
+  <div class="flight-card"><span>TRAINING FLIGHT</span><strong>PG 1337</strong><p>LOCAL → OFFLINE</p><div class="route"><i></i><i></i><i></i></div><small>LEVEL {{ active_level }} · LAB ONLY</small></div>
+</section>
+<section class="panel public-chat">
+  <div class="panel-title"><div><p class="eyebrow">PGBOT · GUEST ACCESS</p><h2>Ask PG-Airlines</h2><p class="muted">Chat without signing in. Sign in to upload a boarding pass, file a complaint, or use role-specific tools.</p></div><button id="reset-chat" class="secondary">Reset</button></div>
+  <div id="messages" class="messages"><div class="message bot">Welcome aboard. How can I help with your journey?</div></div>
+  <form id="chat-form" class="composer"><textarea id="chat-input" placeholder="Ask PGBot about flights, baggage, refunds…" required></textarea><button class="button" type="submit">Send</button></form>
+</section>
+<section class="feature-grid"><article><b>01</b><h3>Attack PGBot</h3><p>Probe a local Qwen model backed by mixed public and sensitive retrieval.</p></article><article><b>02</b><h3>Escalate controls</h3><p>Compare five cumulative defense levels without restarting the application.</p></article><article><b>03</b><h3>Capture flags</h3><p>Submit evidence and earn more points at harder security levels.</p></article></section>
+{% endblock %}
