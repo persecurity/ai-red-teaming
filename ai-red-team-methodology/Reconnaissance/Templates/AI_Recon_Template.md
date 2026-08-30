@@ -1,19 +1,5 @@
 # AI Application Reconnaissance Template
 
-## 0. Engagement Metadata
-
-| Field | Value |
-| --- | --- |
-| Target / app name              | `_____` |
-| Environment (prod/staging/lab) | `_____` |
-| Base URL(s) / host:port        | `_____` |
-| Authorization ref / scope doc  | `_____` |
-| Rules of engagement / limits   | `_____` |
-| Rate-limit constraints         | `_____` |
-| Knowledge granted (box color)  | `[ ] black  [ ] grey  [ ] white` |
-| Repo access granted?           | `[ ] yes  [ ] no` → path: `_____` |
-| Tester / date                  | `_____` |
-
 ### Recon posture — the two orthogonal axes
 
 ```
