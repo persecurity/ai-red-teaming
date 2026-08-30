@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 from flask import Flask
 
-from app.rag import _chunk, _lexical_retrieve, retrieve
+from app.rag import _chunk, _lexical_retrieve, retrieve, should_retrieve
 
 
 def test_chunking_preserves_overlap_and_does_not_emit_empty_chunks():
@@ -33,6 +33,21 @@ def test_lexical_retrieval_ranks_filename_and_content_matches(tmp_path):
 
     assert results[0]["source"] == "baggage.md"
     assert all(result["group"] in {"public", "sensitive"} for result in results)
+    assert results[0]["id"] == "public-baggage-0"
+    assert results[0]["combined_score"] > 0
+
+
+def test_router_separates_general_knowledge_from_airline_questions():
+    assert should_retrieve("What is 2+2?") is False
+    assert should_retrieve("What is the PG-Airlines baggage policy?") is True
+    assert should_retrieve("How much luggage can I bring on my flight?") is True
+
+
+def test_retrieve_does_not_call_vector_services_for_general_knowledge():
+    with patch("app.rag.ensure_index") as ensure, patch("app.rag._embed") as embed:
+        assert retrieve("What is 2+2?") == []
+    ensure.assert_not_called()
+    embed.assert_not_called()
 
 
 def test_retrieve_uses_lexical_fallback_when_vector_index_fails():

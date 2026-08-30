@@ -7,4 +7,3 @@ COPY . .
 RUN chmod +x scripts/app-entrypoint.sh scripts/ollama-init.sh && mkdir -p data chroma
 EXPOSE 5000
 ENTRYPOINT ["./scripts/app-entrypoint.sh"]
-

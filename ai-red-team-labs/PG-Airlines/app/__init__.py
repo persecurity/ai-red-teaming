@@ -33,13 +33,26 @@ def create_app(test_config=None):
 
     @app.context_processor
     def globals_for_templates():
-        return {"active_level": app.config["SECURITY_LEVEL"]}
+        return {
+            "active_level": app.config["SECURITY_LEVEL"],
+            "partner_gateway_port": app.config["PARTNER_GATEWAY_PUBLIC_PORT"],
+        }
 
     @app.get("/")
     def index():
         if current_user.is_authenticated:
             return redirect(url_for("dashboard"))
         return render_template("index.html")
+
+    @app.get("/js/passenger-support.js")
+    def passenger_support_script():
+        response = app.make_response(render_template("js/passenger-support.js"))
+        response.mimetype = "application/javascript"
+        return response
+
+    @app.get("/js/main.js")
+    def main_script():
+        return app.send_static_file("app.js")
 
     @app.get("/dashboard")
     @login_required

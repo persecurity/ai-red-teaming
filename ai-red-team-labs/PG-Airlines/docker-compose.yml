@@ -60,6 +60,9 @@ services:
       OLLAMA_BASE_URL: http://ollama:11434
       OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-5m}
       OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-4096}
+      RAG_MIN_VECTOR_SCORE: ${RAG_MIN_VECTOR_SCORE:-0.35}
+      RAG_TOP_K: ${RAG_TOP_K:-4}
+      PARTNER_GATEWAY_PORT: ${PARTNER_GATEWAY_PORT:-8000}
       SCAN_UPLOADS_WITH_GUARD: ${SCAN_UPLOADS_WITH_GUARD:-false}
       FLASK_SECRET_KEY: ${FLASK_SECRET_KEY:-local-training-only-change-me}
       DATABASE_PATH: /lab/data/lab.db
@@ -68,6 +71,27 @@ services:
     volumes:
       - app-data:/lab/data
       - chroma-data:/lab/chroma
+
+  partner-gateway:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    entrypoint: ["python", "-m", "app.partner_gateway"]
+    ports:
+      - "127.0.0.1:${PARTNER_GATEWAY_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://127.0.0.1:8000/health', timeout=3).raise_for_status()"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+    environment:
+      PARTNER_GATEWAY_HOST: 0.0.0.0
+      PARTNER_GATEWAY_PORT: 8000
+      PARTNER_API_KEY: ${PARTNER_API_KEY:-pgair-partner-demo-only}
+      UPSTREAM_ASSISTANT_URL: http://app:5000/api/v2/assistant
 
 volumes:
   ollama-models:

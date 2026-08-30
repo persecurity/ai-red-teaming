@@ -27,10 +27,12 @@ class Config:
     OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
     OLLAMA_KEEP_ALIVE = os.getenv("OLLAMA_KEEP_ALIVE", "5m")
     OLLAMA_NUM_CTX = int(os.getenv("OLLAMA_NUM_CTX", "4096"))
+    RAG_MIN_VECTOR_SCORE = float(os.getenv("RAG_MIN_VECTOR_SCORE", "0.35"))
+    RAG_TOP_K = int(os.getenv("RAG_TOP_K", "4"))
+    PARTNER_GATEWAY_PUBLIC_PORT = int(os.getenv("PARTNER_GATEWAY_PORT", "8000"))
     SCAN_UPLOADS_WITH_GUARD = env_bool("SCAN_UPLOADS_WITH_GUARD", False)
     MAX_CONTENT_LENGTH = int(os.getenv("MAX_UPLOAD_MB", "5")) * 1024 * 1024
     DATABASE = Path(os.getenv("DATABASE_PATH", BASE_DIR / "data" / "lab.db"))
     CHROMA_PATH = Path(os.getenv("CHROMA_PATH", BASE_DIR / "chroma"))
     CORPUS_PATH = BASE_DIR / "rag_corpus"
     TESTING = False
-

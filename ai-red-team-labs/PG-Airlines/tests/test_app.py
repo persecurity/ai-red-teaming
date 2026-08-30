@@ -31,6 +31,24 @@ def test_warning_banner_and_level_are_visible(client):
     assert b'id="sources"' not in response.data
 
 
+def test_page_source_exposes_widget_configuration_script(client):
+    response = client.get("/")
+    assert b'<script src="/js/passenger-support.js"></script>' in response.data
+    assert b'<script src="/js/main.js"></script>' in response.data
+
+    script = client.get("/js/passenger-support.js")
+    assert script.status_code == 200
+    assert script.mimetype == "application/javascript"
+    assert b'assistantEndpoint: "/api/v2/assistant"' in script.data
+    assert b"partnerGateway:" in script.data
+    assert b"legacySupport: true" in script.data
+
+    main = client.get("/js/main.js")
+    assert main.status_code == 200
+    assert main.mimetype in {"application/javascript", "text/javascript"}
+    assert client.get("/js/chat-widget.js").status_code == 404
+
+
 def test_login_panel_displays_seeded_credentials(client):
     response = client.get("/login")
     assert b"client" in response.data and b"flysafe123" in response.data
@@ -67,12 +85,37 @@ def test_invalid_flag_is_rejected(client):
 
 def test_chat_route_runs_retrieval_and_returns_sources(client):
     login(client)
-    docs = [{"text": "Bag drop closes 45 minutes before departure.", "source": "baggage.md", "group": "public"}]
+    docs = [{
+        "id": "public-baggage-0", "text": "Bag drop closes 45 minutes before departure.",
+        "source": "baggage.md", "group": "public", "vector_score": 0.82,
+        "bm25_score": 2.0, "combined_score": 0.79,
+    }]
     with patch("app.chat.retrieve", return_value=docs), patch("app.chat.call_ollama", return_value="Bag drop closes 45 minutes before departure."):
         response = client.post("/api/chat", json={"message": "When does bag drop close?"})
     assert response.status_code == 200
     assert response.json["success"]
-    assert response.json["sources"] == [{"name": "baggage.md", "collection": "public"}]
+    source = response.json["sources"][0]
+    assert source == {
+        "name": "baggage.md", "collection": "public", "title": "baggage.md",
+        "chunk_id": "public-baggage-0", "text": "Bag drop closes 45 minutes before departure.",
+        "vector_score": 0.82, "bm25_score": 2.0, "combined_score": 0.79,
+    }
+    assert response.json["answer"] == response.json["response"]
+    assert set(response.json["retrieval_info"]) == {
+        "retrieval_time_ms", "generation_time_ms", "total_time_ms",
+    }
+
+
+def test_general_knowledge_query_does_not_activate_rag(client):
+    with patch("app.chat.call_ollama", return_value="2 + 2 equals 4."), patch(
+        "app.rag._embed"
+    ) as embed:
+        response = client.post("/api/chat", json={"query": "What is 2+2?"})
+
+    assert response.status_code == 200
+    assert response.json["answer"] == "2 + 2 equals 4."
+    assert response.json["sources"] == []
+    embed.assert_not_called()
 
 
 def test_chat_response_excludes_model_thinking(client):
@@ -93,6 +136,33 @@ def test_guest_can_chat_without_logging_in(client):
     assert response.status_code == 200
     assert response.json["success"]
     assert client.post("/api/chat/reset").json["success"]
+
+
+def test_discovered_assistant_endpoint_exposes_ollama_metadata(client):
+    ollama_payload = {
+        "model": "qwen3:8b",
+        "created_at": "2026-08-24T10:00:00Z",
+        "done": True,
+        "done_reason": "stop",
+        "load_duration": 101,
+        "prompt_eval_count": 12,
+        "prompt_eval_duration": 202,
+        "eval_count": 8,
+        "eval_duration": 303,
+    }
+    with patch("app.chat.retrieve", return_value=[]), patch(
+        "app.chat.call_ollama", return_value=("How can I help?", ollama_payload)
+    ) as model:
+        response = client.post("/api/v2/assistant", json={"message": "Hello"})
+
+    assert response.status_code == 200
+    assert response.json["content"] == "How can I help?"
+    assert "answer" not in response.json
+    assert response.json["metadata"]["provider"] == "ollama"
+    assert response.json["metadata"]["model"] == "qwen3:8b"
+    assert response.json["metadata"]["prompt_eval_count"] == 12
+    model.assert_called_once()
+    assert model.call_args.kwargs == {"include_metadata": True}
 
 
 def test_discount_agent_issues_abuse_flag_only_above_policy(client):

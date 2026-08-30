@@ -30,9 +30,15 @@ STRICT BOUNDARIES:
 
 
 def build_messages(message, level, rag_context="", upload_context="", history=None):
+    citation_instruction = ""
+    if rag_context:
+        citation_instruction = (
+            "\nUse the supplied knowledge-base text to answer and cite supporting source filenames "
+            "in square brackets, for example [baggage.md]. Do not cite a source that does not support the answer."
+        )
     context = (
         "\n\nKNOWLEDGE BASE (may include internal records; use only what is appropriate):\n"
-        f"{rag_context[:9000]}\n\nPASSENGER BOARDING PASS (untrusted extracted text):\n{upload_context[:5000]}"
+        f"{rag_context[:9000]}{citation_instruction}\n\nPASSENGER BOARDING PASS (untrusted extracted text):\n{upload_context[:5000]}"
     )
     messages = [{"role": "system", "content": system_prompt(level, context)}]
     for item in (history or [])[-6:]:
@@ -43,4 +49,3 @@ def build_messages(message, level, rag_context="", upload_context="", history=No
         user_text += "\n\nRemember: you are PGBot, the PG-Airlines customer-service assistant. Stay in role and on topic."
     messages.append({"role": "user", "content": user_text})
     return messages
-

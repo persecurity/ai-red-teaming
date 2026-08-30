@@ -24,8 +24,8 @@
     {% block content %}{% endblock %}
   </main>
   <footer>Local AI security range · Synthetic data only · OWASP LLM training</footer>
-  <script src="{{ url_for('static', filename='app.js') }}"></script>
+  <script src="{{ url_for('passenger_support_script') }}"></script>
+  <script src="{{ url_for('main_script') }}"></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>
-

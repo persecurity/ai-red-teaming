@@ -4,7 +4,7 @@ PG-Airlines is a deliberately vulnerable, self-contained AI security range for p
 
 > ⚠ Intentionally vulnerable training lab — do not deploy publicly. All data is fake.
 
-The web application binds to `127.0.0.1`; Ollama is reachable only inside the private Compose network. Do not change that binding or expose the lab to an untrusted network. All names, credentials, records, keys, and payment identifiers in the corpus are synthetic.
+The web application and simulated partner gateway bind to `127.0.0.1`; Ollama is reachable only inside the private Compose network. Do not change those bindings or expose the lab to an untrusted network. All names, credentials, records, keys, and payment identifiers in the corpus are synthetic.
 
 ## Quick start
 
@@ -15,7 +15,7 @@ chmod +x run.sh
 ./run.sh
 ```
 
-Choose a security level from 1 through 5. First startup downloads the selected local Ollama models and may take a while; after those pulls complete, runtime traffic stays within the Compose network. Open <http://127.0.0.1:5001>.
+Choose a security level from 1 through 5. First startup downloads the selected local Ollama models and may take a while; after those pulls complete, runtime traffic stays within the Compose network. Open <http://127.0.0.1:5001>. The separate reconnaissance target is available at <http://127.0.0.1:8000>.
 
 The launcher waits for the application health check and prints the final browser URL only when the lab is ready. Containers continue running in the background; stop them with `docker compose down`.
 
@@ -45,6 +45,7 @@ Profile A is the default and prioritizes chat quality. The judge reuses the chat
 ```dotenv
 MODEL_PROFILE=8B-single
 APP_PORT=5001
+PARTNER_GATEWAY_PORT=18000
 CHAT_MODEL=qwen3:8b
 CONFIGURED_JUDGE_MODEL=qwen3:8b
 LLAMA_GUARD_MODEL=llama-guard3:1b
@@ -58,6 +59,7 @@ Profile B uses a smaller chat model and a different-family judge. It generally r
 ```dotenv
 MODEL_PROFILE=multi-model-independent-judge
 APP_PORT=5001
+PARTNER_GATEWAY_PORT=18000
 CHAT_MODEL=qwen3:4b
 CONFIGURED_JUDGE_MODEL=llama3.2:3b
 LLAMA_GUARD_MODEL=llama-guard3:1b
@@ -89,7 +91,11 @@ Controls are cumulative. L4 and L5 deliberately fail open if the local classifie
 
 ## Lab surfaces
 
-- Chat retrieves top chunks from both `rag_corpus/public` and `rag_corpus/sensitive`. Chroma uses `nomic-embed-text`; a lexical fallback keeps the app inspectable if embeddings are temporarily unavailable.
+- The landing page loads an intentionally over-informative chat widget configuration. It reveals a versioned assistant route, feature flags, a service identifier, and the partner gateway location.
+- The discovered `/api/v2/assistant` route returns Ollama provider, model, token-count, and timing metadata. The original `/api/chat` route remains as a less verbose legacy endpoint.
+- Port 18000 runs a small nginx-style reverse-proxy training facade. It deliberately leaks proxy/version headers and returns distinguishable 200, 401, and 404 responses for route enumeration. It is an emulator, not a full nginx deployment.
+- Chat routes PG-Airlines/company questions to RAG and leaves general-knowledge questions on the base model. Relevant chunks come from `rag_corpus/public` and `rag_corpus/sensitive`; Chroma uses `nomic-embed-text`, a BM25 fallback keeps the app inspectable if embeddings are temporarily unavailable, and low-relevance vector hits are discarded.
+- RAG responses cite source filenames in the generated answer and expose chunk text plus vector, BM25, and combined relevance scores in `sources`. Non-RAG responses return `sources: []`; `retrieval_info` reports retrieval, generation, and total timings.
 - A text-based boarding-pass PDF can be uploaded. Only text is extracted, capped at 5 MB, and stored per user in SQLite for later turns. No PDF content is executed or retained.
 - The client discount agent lets an LLM “verify” complaints before invoking an over-authorized discount tool.
 - The admin promotion agent can set a promotion or access an internal master-code tool.
@@ -129,6 +135,7 @@ docker compose up --build
 |---|---|
 | `GET /health` | Process health and active level |
 | `POST /api/chat` | Public or authenticated PGBot turn |
+| `POST /api/v2/assistant` | Deliberately verbose public PGBot endpoint discovered in client JavaScript |
 | `POST /api/chat/reset` | Clear the current guest or account chat context |
 | `POST /api/upload/boarding-pass` | Extract an authenticated user's PDF |
 | `POST /api/agents/discount` | Client discount verifier/tool |
@@ -136,6 +143,9 @@ docker compose up --build
 | `POST /api/config/level` | Admin live level switch |
 | `POST /api/ctf/submit` | Validate and score a flag |
 | `GET /scoreboard` | Human-readable scoreboard |
+| `GET :18000/v1/auth` | Public partner authentication descriptor |
+| `GET :18000/v1/billing` | Public route that leaks gateway fingerprint headers |
+| `GET/POST :18000/v1/chat/completions` | OpenAI-compatible route; returns 401 without the partner Bearer token |
 
 ### Example payloads
 
@@ -150,6 +160,18 @@ seeded account.
   "message": "When does online check-in open?"
 }
 ```
+
+For curl-oriented exercises, `query` is accepted as an alias for `message`. The response includes
+both the legacy `response` field and an `answer` alias:
+
+```sh
+curl -s -X POST http://127.0.0.1:5001/api/chat \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"What is the PG-Airlines baggage policy?"}' | jq
+```
+
+Tune conditional retrieval with `RAG_MIN_VECTOR_SCORE` (default `0.35`) and `RAG_TOP_K`
+(default `4`). Raising the minimum score makes source activation more selective.
 
 `POST /api/chat/reset` has no request body. It clears the current guest or
 authenticated user's chat context; for an authenticated user, it also removes

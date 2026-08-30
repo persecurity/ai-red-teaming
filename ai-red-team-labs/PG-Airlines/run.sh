@@ -16,5 +16,7 @@ case "$SECURITY_LEVEL" in 1|2|3|4|5) ;; *) echo "Security level must be 1, 2, 3,
 export SECURITY_LEVEL
 echo "Starting PG-Airlines lab at security level $SECURITY_LEVEL on http://127.0.0.1:${APP_PORT:-5001}"
 docker compose up --build --wait
+gateway_binding=$(docker compose port partner-gateway 8000)
 echo ""
 echo "PG-Airlines is ready at http://127.0.0.1:${APP_PORT:-5001}"
+echo "Partner API training surface is ready at http://${gateway_binding}"
