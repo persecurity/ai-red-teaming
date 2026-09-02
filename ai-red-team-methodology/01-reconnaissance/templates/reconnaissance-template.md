@@ -1,6 +1,6 @@
 # AI Application Reconnaissance Template
 
-### Recon posture — the two orthogonal axes
+## Recon posture — the two orthogonal axes
 
 ```
 Interaction with running target        Knowledge granted before testing
@@ -334,4 +334,3 @@ relationships → `_____`
 **Highest-value recon surface here:** 
 
 **Recon summary:** 
-

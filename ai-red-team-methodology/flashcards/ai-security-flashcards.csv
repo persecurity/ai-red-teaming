@@ -1,0 +1,295 @@
+﻿What is the primary objective of the Threat Modelling process?,To identify and prioritize ways an attacker could compromise a system.
+"In generic threat modelling, the &#x27;Who&#x27; component identifies the potential _____.",Threat actors.
+Generic Threat Modelling: What is the term for the items or information that threat actors value?,Assets.
+Generic Threat Modelling: What category describes the specific methods or areas an attacker might target?,Attack surface or techniques.
+Generic Threat Modelling: What does &#x27;Impact&#x27; measure in the context of a successful compromise?,Risk.
+"In an AI chatbot threat model, which threat actor might attempt to use the bot to gain unauthorized discounts?",Malicious user.
+Why might a &#x27;malicious user&#x27; target a company&#x27;s chatbot reputationally?,To cause harm to the company&#x27;s public standing.
+Which AI threat actor category includes staff members trying to access privileged documents?,Curious insider.
+AI Chatbot Threat Actors: What is a typical goal for a &#x27;competitor&#x27; attacking a model?,To steal intellectual property or training data.
+"A competitor might attack a chatbot to perform model _____, effectively copying the model&#x27;s behavior.",Reconstruction.
+What is the main purpose of &#x27;automated bots&#x27; in an attack against a chatbot?,To scrape details for cloning or to waste system resources.
+AI Chatbot Threat Actors: Which group uses the chatbot as a stepping stone for further crimes like ransomware?,Criminal attackers.
+Why are &#x27;Model Parameters&#x27; considered a critical asset for an AI chatbot?,They allow for the cloning of a private model.
+"Training data is a sensitive asset because it may contain PII, which stands for _____.",Personally Identifiable Information.
+AI Chatbot Assets: What specific type of data can contain confidential information stored for Retrieval-Augmented Generation?,Private RAG data.
+"User PII, such as names and _____, are valuable assets that must be protected in a chatbot system.",Emails.
+Which asset category involves the chatbot&#x27;s ability to send emails or run system commands?,Agentic Tools / Capabilities.
+Abusing &#x27;Agentic Tools&#x27; might allow an attacker to send a malicious _____ request.,Web.
+AI Chatbot Assets: Why are API keys considered highly sensitive?,They grant access to internal resources or third-party AI services.
+Which attack surface includes any user-modifiable prompts or files presented to the model?,Input channels.
+The &#x27;Retrieval RAG Layer&#x27; can be compromised through vector database _____.,Poisoning.
+How can &#x27;malicious documents&#x27; affect the AI chatbot&#x27;s attack surface?,By compromising the Retrieval RAG Layer.
+Attack Surface: What part of the system is targeted when an attacker exploits the tools an agent interacts with?,Tools / plugins.
+The _____ attack surface involves the use of backdoored models or compromised dependencies.,Supply-chain.
+Why is &#x27;Logging&#x27; considered part of the AI chatbot&#x27;s attack surface?,It may inadvertently contain model details or user PII.
+"Which attack surface could expose system configurations, debug details, or secret keys?",Admin / Debug endpoints.
+Training data can be poisoned either during pre-training or during the _____ stage.,Fine-tuning.
+What is a major legal risk of PII leakage from a customer service chatbot?,Significant fines and legal issues.
+How does the leakage of sensitive data affect customer relations?,It leads to a loss of customer confidence.
+The theft of training data results in a loss of _____ for the company.,Competitive edge.
+What is the primary reputational risk of a &#x27;jailbroken&#x27; chatbot?,The generation of harmful or inappropriate output.
+"A jailbroken chatbot might be manipulated to perform actions it shouldn&#x27;t, such as giving unauthorized _____.",Discounts.
+What is the ultimate risk if an attacker uses a chatbot to gain &#x27;Internal access&#x27;?,The ability to further criminal motives like ransomware.
+Concept: Malicious User,Definition: An external actor using the chatbot to gain unfair advantages or damage the provider.
+Concept: Curious Insider,Definition: Internal staff (devs/support) attempting to access data or features beyond their authorization.
+"AI Chatbot Assets: Private RAG data can contain sensitive, confidential, or _____ information.",PII (Personally Identifiable Information).
+Which component of the AI architecture is targeted by &#x27;vector DB poisoning&#x27;?,Retrieval RAG Layer.
+What does &#x27;supply-chain&#x27; risk refer to in an AI context?,Compromised third-party dependencies or models.
+What characterizes the &#x27;Criminal attacker&#x27; threat actor in a chatbot context?,The use of the chatbot to gain information for further criminal intentions.
+The generic threat model question &#x27;What they value&#x27; maps to which AI chatbot category?,Assets.
+The generic threat model question &#x27;Who might attack&#x27; maps to which AI chatbot category?,Threat actors.
+The generic threat model question &#x27;What they may attack&#x27; maps to which AI chatbot category?,Attack surface / techniques.
+The generic threat model question &#x27;Impact if successful&#x27; maps to which AI chatbot category?,Risk.
+Asset: Agentic Tools,Example: A chatbot&#x27;s ability to read/send emails or execute code on a server.
+Why is &#x27;model parameters&#x27; theft a specific threat to IP?,It allows a competitor to essentially steal the &#x27;brain&#x27; of the AI.
+Which attack surface is most likely to expose an API endpoint for an internal resource?,Admin / Debug endpoints.
+A &#x27;jailbroken&#x27; bot is one that has been manipulated to bypass its _____.,Safety or operational constraints.
+Leakage of PII via a chatbot can serve as a precursor to further _____ by criminals.,Access or attacks.
+Automated bots primarily target chatbots for _____ or resource exhaustion.,Data scraping.
+"In the context of RAG, what is a &#x27;malicious document&#x27;?",A file designed to influence the model&#x27;s output in harmful ways when retrieved.
+Which threat actor specifically seeks to &#x27;reconstruct the model&#x27;?,Competitor.
+Why is &#x27;PII&#x27; listed as both an asset and a major risk factor?,"It is valuable data to protect, and its loss triggers legal and reputational damage."
+How can a chatbot&#x27;s &#x27;logs&#x27; facilitate an attack?,By providing attackers with sensitive system details found in logs.
+Training data poisoning can occur during initial training or during subsequent _____.,Fine-tuning.
+What is the relationship between &#x27;agentic capabilities&#x27; and &#x27;internal access&#x27; risk?,Abusing capabilities can provide the initial foothold needed for deeper network access.
+Which component serves as the initial entry point for user input in the defense pipeline?,Rate Limiter.
+What is the final processing step in the defense pipeline before the user receives the output?,PII Redaction.
+List the three defense layers identified for LLM01 Prompt Injection.,"Pattern Based Filter, AI Input Classifier, and Hardened System Prompt."
+Which two defense layers mitigate LLM02 Sensitive Information Disclosure?,Hardened RAG and PII Redaction.
+Hardened RAG consists of two main components: Access Control and _____.,RAG Segmentation.
+LLM03 Supply Chain is classified as an issue within which technical discipline?,DevSecOps.
+Term: LLM05 Improper Output Handling,"Definition: Insufficient validation, sanitization, and handling of outputs generated by the LLM."
+Name one example of a malicious output on a backend system caused by Improper Output Handling.,SSRF (or privilege escalation / remote code execution).
+What are two examples of malicious output in web browsers stemming from LLM05?,XSS and CSRF.
+Which specific defense layer is used to address LLM05 Improper Output Handling?,Output Moderation.
+How should LLM06 Excessive Agency be programmatically mitigated?,By restricting AI Agents.
+Why is the System Prompt unsuitable for use as a security control?,It should not be considered a secret.
+What is the recommended objective when dealing with LLM07 System Prompt Leakage?,Hardening the system prompt to be as resilient as possible.
+Which defense layer is designated for LLM08 Vector and Embedding Weaknesses?,RAG Hardened.
+Which layer in the pipeline is responsible for preventing LLM10 Unbounded Consumption?,Rate Limiting.
+"In the defense pipeline sequence, which step immediately follows the Pattern Based Filter?",AI Input Classifier.
+"In the defense pipeline, which component follows &#x27;Hardened RAG&#x27; and precedes &#x27;Model Generates Response&#x27;?",Hardened System Prompt and Model Configs.
+"The defense against Prompt Injection includes a Hardened System Prompt, an AI Input Classifier, and a _____ Filter.",Pattern Based.
+Primary AI Harness Recommendation,"Switch from engineering HOW something gets done, to specifying WHAT the ideal outcome looks like."
+The Core Strategy for getting as best as possible results with AI-generated actions,"Give the AI proper context for the perfect output and the tools it can use, instead of instructions on how to do it."
+Role of the AI in terms of achieving results,Assume the AI knows better than you how to achieve the result.
+Role of the User,Your job is to describe exactly what you want as perfectly and specifically as possible.
+Focus Shift,Move away from (over)engineering the process and move toward defining the ideal outcome for you.
+The Prompting Secret,"The whole game is providing clear context and tool access, not step-by-step micromanagement."
+The Mindset Blueprint,Stop telling the AI how to work; start defining the target perfectly.
+"In the context of LLMs, what does the &#x27;Temperature&#x27; parameter determine?",It refers to how creative or deterministic the model&#x27;s output should be.
+What is the primary characteristic of an LLM&#x27;s output when the &#x27;Temperature&#x27; is set to a low value?,The output becomes more deterministic and predictive.
+Why does a high &#x27;Temperature&#x27; setting pose a security risk for chatbots?,It increases the probability of the model being manipulated or hacked.
+Which parameter sets the threshold for the maximum number of tokens an AI can produce in one instance?,num_predict
+How does a high &#x27;num_predict&#x27; value specifically facilitate data leakage?,"It allows the model to generate longer texts, which provides more opportunity to expose sensitive data."
+How does the &#x27;num_predict&#x27; parameter help mitigate Distributed Denial of Service (DDoS) attempts?,It prevents attackers from forcing the model to create excessively long outputs that waste money and compute resources.
+What is the recommended range for &#x27;num_predict&#x27; tokens in a standard customer service chatbot?,400-500 tokens.
+What is the function of the &#x27;num_ctx&#x27; parameter in LLM configuration?,It sets the limit for the context window size.
+"In Retrieval-Augmented Generation (RAG), what is the security risk of having too large a context window?",Hackers may be able to exfiltrate a larger amount of data from the retrieved context.
+What is considered a sufficient context window size (num_ctx) for most chatbots?,2048-4096 max tokens.
+Which parameter defines the specific code or pattern where the model must stop generating further output?,stop
+How does the &#x27;stop&#x27; parameter hinder attacks involving user impersonation?,It prevents the model from being tricked by user or model names written at the end of input to reveal secrets.
+Concept: repeat_penalty,Definition: A parameter that penalizes the model for generating the exact same tokens repeatedly.
+"Besides wasting resources, what specific model behavior does &#x27;repeat_penalty&#x27; help hinder?",It prevents corruption patterns where the model repeats itself endlessly.
+What is a standard and effective value typically used for the &#x27;repeat_penalty&#x27; parameter?,1.1
+The parameter used to stop an attacker from wasting a service&#x27;s money by forcing very long outputs is _____.,num_predict
+What is the primary purpose of the First Layer of The Defense?,To establish specific model parameters that regulate response behavior.
+To what value was the model&#x27;s temperature decreased to increase conservatism?,0.3
+Why was the temperature parameter reduced from 0.5 to 0.3?,To make the model&#x27;s output more conservative.
+Which parameter is used to define the range of vocabulary from which the model selects words?,top_p
+The First Layer of The Defense involves lowering the top_p parameter from 0.8 to _____.,0.7
+What is the new hardcap value for the num_predict parameter?,512
+"Before the current defense settings, what was the model&#x27;s limit for num_predict?",The max context window limit.
+Concept: num_predict,Definition: A parameter that sets a hardcap on the length of the model&#x27;s response.
+Which three parameters are adjusted to form the First Layer of The Defense?,"temperature, top_p, and num_predict."
+Why is it unsafe to include sensitive information in a system prompt?,System prompts are susceptible to being leaked to the user.
+How should developers classify a system prompt in terms of technical security?,It should not be considered a security control.
+What is the primary security risk of using &quot;positive framing&quot; like &quot;be always helpful&quot;?,It creates ambiguity and provides scope for revealing secret information.
+Which instructional style is recommended to prevent secrets from being revealed?,Explicit refusals such as &quot;DO NOT&quot; or &quot;NEVER.&quot;
+Provide an example of an explicit refusal used to prevent data fabrication.,&quot;DO NOT invent tickets.&quot;
+"How does assigning a model a specific persona, such as &quot;TMC Bot,&quot; benefit security?",It makes persona override attacks much harder to execute.
+"In addition to the beginning of a prompt, where else should a persona be stated?",At the very end of the prompt.
+The instruction &quot;NEVER say a secret word&quot; is an example of an _____ _____.,Explicit refusal.
+What specific vulnerability does positive framing introduce to a model&#x27;s instructions?,Ambiguity.
+"To maximize protection against override attacks, a persona should be placed at the _____ and at the _____ of the prompt.",Beginning; end.
+In which two locations should the chatbot&#x27;s name be written to ensure it stays in role?,The prompt and the prompt suffix.
+"What is the primary purpose of naming a chatbot (e.g., &#x27;CableBot&#x27;) in both the prompt and suffix?",To increase resilience against role overriding.
+Why should the role of a chatbot be scoped as narrow as possible?,To reduce the surface attack area.
+What specific phrase is recommended for use in the prompt system to define the bot&#x27;s identity?,&quot;YOUR ROLE&quot;
+Which phrase should be included in the prompt system to establish the AI&#x27;s constraints?,&quot;STRICT BOUNDARIES&quot;
+"To maximize role resilience, the chatbot should be given a specific _____.",Name
+Term: Scoping,Definition: Narrowing the chatbot&#x27;s role to the smallest possible range to improve security.
+Scoping a role narrowly is a technique used to minimize the _____ _____.,Surface attack
+"In the provided example, what is the specific name given to the chatbot?",CableBot
+For what type of attacks we use&nbsp;Pattern-Based Input Filtering?,Pattern Based Input Filtering is usually for simple prompt injections attacks
+What we use in a code to filter dangerous phrases in Pattern-Based Input Filtering,In Pattern Based Input Filtering we use regex to filter dangerous phrases.
+What is the permitted number of login attempts per minute?,5 attempts
+How many user registration attempts are allowed per minute?,3 attempts
+What is the message frequency limit for the customer chatbot per minute?,5-10 messages
+What is the maximum token limit for chat messages in the customer chatbot?,1000 tokens
+The rate limit for login attempts is _____ attempts per minute.,5
+The limit for user registrations is set to _____ attempts per minute.,3
+The customer chatbot restricts chat messages to a range of _____ per minute.,5-10
+The specific limit for chat message tokens in the customer chatbot is _____.,1000
+Which specific action is limited to exactly 3 attempts per minute?,User registrations
+Which specific action is limited to exactly 5 attempts per minute?,Login attempts
+Concept: Customer Chatbot Token Limit,Definition: A restriction allowing a maximum of 1000 tokens for chat messages.
+What is the first phase of the AI Red Teaming Lifecycle?,Planning and scoping.
+"In the AI Red Teaming Lifecycle, which phase immediately follows Planning and scoping?",Threat Modeling and Scenario Building.
+What is the third phase of the AI Red Teaming Lifecycle?,Adversarial Testing.
+Which phase of the AI Red Teaming Lifecycle focuses on documenting findings and sharing them?,Analysis and Reporting.
+What is the final phase of the AI Red Teaming Lifecycle?,Remediation and Retesting.
+Why are Responsible AI (RAI) principles important for red teamers?,They help define additional categories for potential attacks.
+Concept: Fairness (RAI principle),Definition: The process of checking if an AI model produces biased or discriminatory results.
+Testing a credit approval system for prejudices is an example of evaluating which RAI principle?,Fairness.
+Which RAI principle focuses on preventing the generation of misinformation or extremist content?,Safety.
+What two methods do red teamers use to stress-test AI safety safeguards?,Adversarial prompting and jailbreak scenarios.
+What is the primary risk addressed by the &#x27;Privacy&#x27; principle in AI models?,The risk that sensitive training data might be leaked.
+Name one type of attack used to test for privacy risks and data extraction.,Model inversion attacks.
+"Privacy assessments help ensure that AI systems comply with regulations like GDPR, CCPA, and _____.",HIPAA.
+What is the goal of the &#x27;Transparency&#x27; principle in AI red teaming?,Ensuring stakeholders can understand and audit the AI&#x27;s decision-making process.
+"To test transparency, red teamers check if models can produce _____.",Interpretable explanations.
+What is the primary purpose of asking business impact questions for an AI system?,To assess the consequences if the system fails.
+What do technical findings like &#x27;unvalidated RAG ingestion&#x27; become after a business impact analysis?,Business risk statements.
+Which specific framework provides a shared vocabulary for documenting AI security findings?,MITRE ATLAS.
+"According to the NVIDIA AI Kill Chain, what is the first stage of an AI-targeted attack?",Recon.
+"In the NVIDIA AI Kill Chain, which stage involves the initial corruption of data or models?",Poison.
+What is the third stage of the NVIDIA AI Kill Chain?,Hijack.
+Which stage follows &#x27;Hijack&#x27; in the NVIDIA AI Kill Chain?,Persist.
+What is the final stage of the NVIDIA AI Kill Chain?,Impact.
+What does the OWASP Top 10 provide for testing AI-driven systems?,Application-level attack patterns.
+What two organizational factors are driven by impact analysis?,Budget allocation and remediation priority.
+Which business impact question focuses on the users of an AI system?,Who or what consumes its output?
+What should be asked to determine the scope of a failure&#x27;s effect on subsequent processes?,How many transactions happen downstream?
+Which business impact question addresses external legal requirements?,What regulatory frameworks apply?
+What does the NVIDIA AI Kill Chain help organizations to communicate?,Defensive gaps.
+"In a business risk statement, false contract terms in a legal retrieval system could lead to _____.",Regulatory violations.
+Which business impact question assesses the time needed to fix a failed system?,How long would remediation take?
+Which business impact question evaluates the risks of data tampering?,What&#x27;s the potential financial impact of manipulation?
+Which business impact question identifies the core functionality of the AI system?,What decisions does this system make?
+What does the Window API represent in a web browser environment?,It represents the window in which the document lives.
+Which specific property of the Window API allows access to the document's URL?,The *location* property.
+Which Window API property is noted for potentially containing sensitive secrets?,The *localStorage* property.
+What method is most commonly used to demonstrate that an application has an XSS vulnerability?,The *alert()* method.
+Why is it possible to use the word 'alert' as a shortcut for 'window.alert'?,Any property in the Window API can be treated as a global variable.
+"Which API is considered the most effective for actually exploiting a vulnerability, rather than just proving it?",The Document API.
+What does the Document API allow a developer or attacker to interface with?,The DOM (Document Object Model).
+What is contained within the DOM that the Document API can access?,Every part of the page loaded in the user's browser.
+Name two types of form inputs that can be accessed using the Document API.,Text and password inputs.
+"Besides inputs, what sensitive browser data can the Document API interface with?",Browser cookies.
+Which user interaction event can be captured and monitored through the Document API?,The *keypress* event.
+The principle that window properties can be accessed directly without the 'window.' prefix is because they act as _____ variables.,global
+Concept: localStorage,A property of the Window API that is used to store data and may contain secrets.
+Concept: alert() method,A Window API method frequently used to provide proof of an XSS vulnerability.
+What is the primary difference between the Window API and Document API regarding XSS?,"The Window API is used to prove a vulnerability exists, while the Document API is used for actual exploitation."
+How does passive reconnaissance differ from active reconnaissance regarding system interaction?,Passive reconnaissance gathers information without directly touching or interacting with the target system.
+Why is passive reconnaissance effective for avoiding target-side request logging?,It utilizes public or archived resources instead of sending direct requests to the target.
+What is the primary advantage of active reconnaissance in an AI assessment?,It provides runtime truth by revealing the actual behavior of the application.
+A practical AI security assessment usually begins with _____ and then moves to active validation.,passive reconnaissance
+Which property of the Model Layer covers the identification of the vendor and specific version?,Model identity
+Testing for context-window size and reasoning limitations is part of enumerating _____ boundaries.,capability
+What can &#x27;knowledge cutoff&#x27; testing reveal about an underlying LLM?,Characteristics and age of the training data used for the model.
+Safety filters and content policies are examples of _____ constraints in the Model Layer.,behavioral
+What technique aims to infer how documents were divided before being processed by a RAG system?,Chunk-boundary probing
+How does &#x27;source citation extraction&#x27; assist in RAG reconnaissance?,"It reveals metadata, filenames, and URLs that identify the underlying knowledge base."
+"In RAG systems, observing which queries cause specific documents to be retrieved is called _____ analysis.",embedding similarity
+Why is the Model Context Protocol (MCP) considered a high-value target for enumeration?,It has description and exposes schemas for available tools and resources.
+Which protocol is designed to support capability discovery and task delegation between different AI agents?,Agent-to-Agent (A2A)
+What can A2A endpoints reveal about the structure of a multi-agent system?,Trust relationships and task-sharing capabilities between various agents.
+Tool invocation testing is used to determine which operations can execute and their required _____.,parameters
+"In agent reconnaissance, what is the goal of &#x27;permission-boundary probing&#x27;?",To test if an agent can perform actions beyond its intended authorization.
+Which component of the infrastructure layer handles rate limiting and request routing?,API Gateway
+What architectural details can HTTP header analysis expose in an AI application?,"Reverse proxy software, caching infrastructure, and backend server identities."
+Which inference server implementation is frequently used for local deployments of LLMs?,Ollama
+Frameworks such as LangChain and LangGraph operate within the _____ layer of the AI stack.,orchestration
+How can orchestration frameworks be fingerprinted by a security researcher?,Through framework-specific error messages and unique response patterns.
+What is a major limitation of relying exclusively on passive reconnaissance?,Information may be outdated or reflect development rather than production settings.
+What is a primary disadvantage of active reconnaissance probes?,They can trigger monitoring alerts and consume rate-limited resources.
+AI reconnaissance should be performed _____ because useful information exists beyond just the model.,layer by layer
+The Model Context Protocol (MCP) uses the _____ format for communication.,JSON-RPC
+What is the primary characteristic of passive reconnaissance?,The researcher does not interact with the target system.
+Why is HTTP header analysis classified as a low-interaction technique?,It requires sending a request to the target server.
+Which passive reconnaissance technique involves searching version control platforms for sensitive information?,Mining code repositories.
+What type of information do load balancers typically leak in HTTP headers?,Routing metadata.
+What purpose do custom headers added by developers often serve during the creation process?,Debugging.
+Which AI infrastructure component identifies the source of the language model through header analysis?,The model provider.
+"In AI reconnaissance, what can HTTP headers reveal regarding data storage?",The vector database type.
+What AI system component manages tool integration and is often revealed in headers?,The orchestration framework.
+"In the command &#x27;curl -s -I&#x27;, what does the &#x27;-s&#x27; flag accomplish?",Hides the progress meter and most error output.
+"In the command &#x27;curl -s -I&#x27;, what does the &#x27;-I&#x27; flag accomplish?",Requests only the response headers without the page body.
+Which curl flag is used to send a HEAD request to a server?,The -I flag.
+What information do frameworks frequently &#x27;advertise&#x27; within HTTP response headers?,Their presence and version information.
+Identify a common AI health check path ending in &#x27;health&#x27; within the api directory.,/api/health
+Identify a common AI health check path ending in &#x27;status&#x27;.,/api/status
+Identify a common health check path that uses a hyphen prefix.,/-/health
+How does the backend logic of a curl request compare to a web interface submission?,The backend logic remains functionally equivalent for both methods.
+What advantage does curl offer over a web interface for infrastructure testing?,It provides precise control over the request structure.
+What specific technique uses HTTP headers to identify the underlying technology stack of an AI application?,Fingerprinting AI infrastructure.
+What is the result of using &#x27;curl -I&#x27; on a target URL?,The server returns only the header metadata.
+Which passive reconnaissance method is used to discover AI system configurations via endpoints?,Health check endpoint analysis.
+Scenario: A researcher needs to analyze headers without downloading a large page body. Which curl flag is appropriate?,The -I flag.
+Scenario: A tester wants to run curl in a script without showing the download progress. Which flag is required?,The -s flag.
+Concept: Low-interaction reconnaissance,Definition: A technique involving minimal direct communication with the target infrastructure.
+Which information source is mined to find leaked credentials or internal AI system architecture?,Code repositories.
+What does a server return when it receives a HEAD request from curl?,Only the HTTP response headers.
+What is a standard text chunking size?,512 characters
+Why are code repositories considered high-value reconnaissance surfaces for AI systems?,"They expose building blocks like model configurations, prompt templates, and RAG parameters."
+"In the context of repository mining, what does white-box testing involve?",Analyzing the source code after being granted access to the repository.
+Publicly scraping GitHub or GitLab is categorized as which combination of testing axes?,Passive and black-box.
+Why is reading repository code during an engagement classified as &quot;passive&quot;?,It does not touch the system at runtime.
+How are the &quot;passive/active&quot; and &quot;black/white-box&quot; axes related in security framing?,They are orthogonal and independent of each other.
+Why are findings from repository mining referred to as &quot;hypotheses&quot;?,They must be confirmed against the live system due to potential configuration drift.
+What is the primary reason deployed configurations might differ from a repository&#x27;s source tree?,Configuration drift.
+What is the benefit of walking a fixed checklist during repository mining?,It ensures a repeatable procedure rather than scanning files randomly.
+Which tool is recommended as first-pass tooling for identifying secrets in a repository?,Gitleaks (or Trufflehog).
+What is the purpose of using Semgrep during the repository mining process?,To identify dangerous code patterns.
+Where do deleted secrets typically persist within a Git repository?,In every commit preceding the deletion.
+What can commit messages like &quot;patch prompt injection&quot; reveal about an organization?,The security posture and known vulnerabilities of the system.
+What information do branch or tag names often leak to an attacker?,"Environment details such as staging, production, or specific client demos."
+What internal information is typically leaked via Git author emails?,The organization&#x27;s internal domain.
+Prompt templates and embedding configs are examples of what type of repository findings?,Distinctive AI artifacts.
+Repository mining helps extract intelligence regarding the AI implementation and its _____ _____.,supporting infrastructure.
+Which surface provides the history of a repository&#x27;s security posture and its known holes?,Commit messages.
+What does repository mining reveal about the AI supply chain?,References to models and links to other external AI components.
+Why must repository mining findings be verified with active probing?,To confirm if the current tree matches the live system configuration.
+The current source tree is described as only _____ _____ _____ when auditing a repository.,half the picture.
+Why is traditional port scanning often insufficient for identifying AI components in web applications?,AI is typically integrated into existing web applications rather than dedicated ports.
+What layer should reconnaissance focus on to find AI integrations like RAG pipelines?,The application layer.
+Which file type should be inspected first in the page source to find AI configurations?,JavaScript files.
+What is the primary purpose of the 401 vs. 404 technique during reconnaissance?,To manually enumerate technology-specific protected endpoints.
+"In endpoint enumeration, what does a 404 Not Found status code generally suggest?",The requested route does not exist.
+"In endpoint enumeration, what does a 401 Unauthorized status code suggest about a route?",The endpoint is reachable but requires authentication.
+Which tool is mentioned for automating the enumeration of protected endpoints?,ffuf.
+What is the goal of using Bash code after discovering an endpoint?,To determine which HTTP methods the endpoint supports.
+Name an application-layer artifact that can reveal references to external AI services.,JavaScript configuration files.
+"Besides API routes and headers, what specific data patterns can indicate AI integration?",Request and response patterns.
+Which reconnaissance artifact refers specifically to the settings of an AI engine?,Model-related parameters.
+What technique relies on comparing HTTP status codes to find reachable but restricted routes?,The 401 vs. 404 technique.
+How can a researcher determine if a discovered endpoint supports the POST method?,By using Bash code.
+What can reconnaissance of application-layer indicators reveal regarding AI providers?,The specific model providers used by the application.
+Which model family is notably more susceptible to certain jailbreaking techniques?,Llama models.
+Which specific social engineering method targets the coding focus of Qwen models?,Programming-themed social engineering.
+How does the identity disclosure of Llama models differ from other AI families?,Llama models are more forthcoming about identity.
+What generic phrase do non-Llama AI families frequently use for model identity?,&quot;I&#x27;m an AI assistant.&quot;
+"If an attacker designs a social engineering attack around programming themes, which model is the target?",Qwen models.
+Why do frameworks like LangChain or LlamaIndex include retrieval metadata by default?,To improve traceability and explainability.
+"From a security perspective, what is the primary risk of returning retrieval metadata?",It exposes useful information for enumeration.
+What can document names like &#x27;public-refunds-and-rebooking&#x27; reveal about a RAG system?,Internal naming patterns and document categories.
+What do retrieved source identifiers indicate about the underlying knowledge base?,How content is stored and indexed.
+What can an attacker learn from retrieval metadata regarding system ranking?,How the system determines relevance and ranks results.
+Which technique uses repeated searches and metadata to map document relationships?,Corpus Structure Reconstruction.
+What does Chunk Boundary Analysis specifically aim to estimate?,"Document segmentation, chunk sizes, and splitting behavior."
+"In Chunk Boundary Analysis, what data points are used besides identifiers and offsets?",Overlap and repeated fragments.
+Which technique analyzes similarity score changes across different queries?,Similarity Probing.
+What system properties are estimated through Similarity Probing?,Retrieval thresholds and boundary behavior.
+What is the primary objective of the Content Extraction technique?,"To recover indexed text, metadata, or document fragments."
+Content Extraction is most effective when what two security measures are insufficient?,Access controls and output filtering.
+RAG frameworks include retrieval metadata to improve _____ and explainability.,traceability
+Metadata exposure in RAG applications is primarily used for _____ during reconnaissance.,enumeration
+How does Corpus Structure Reconstruction differ from Chunk Boundary Analysis?,Reconstruction maps database organization; Analysis maps document segmentation.
+How does Similarity Probing differ from Content Extraction in terms of focus?,Probing targets retrieval logic; Extraction targets the knowledge base content.
+Scenario: An attacker examines chunk offsets and overlap. Which technique is being applied?,Chunk Boundary Analysis.
+Scenario: An attacker uses ranking changes across queries to find retrieval thresholds. Name the technique.,Similarity Probing.
+Scenario: An attacker reconstructs document relations via metadata. Name the technique.,Corpus Structure Reconstruction.
+Concept: Content Extraction,Definition: Recovering indexed text or metadata when access controls are insufficient.

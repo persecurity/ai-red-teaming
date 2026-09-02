@@ -10,6 +10,9 @@ pypdf==5.6.0
 # Vector database for document retrieval
 chromadb==1.0.12
 
+# LLM observability and tracing
+langfuse==4.14.4
+
 # Production WSGI server
 gunicorn==23.0.0
 

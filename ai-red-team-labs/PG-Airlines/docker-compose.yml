@@ -68,6 +68,14 @@ services:
       DATABASE_PATH: /lab/data/lab.db
       CHROMA_PATH: /lab/chroma
       ANONYMIZED_TELEMETRY: "false"
+      LANGFUSE_TRACING_ENABLED: ${LANGFUSE_TRACING_ENABLED:-true}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_BASE_URL: ${LANGFUSE_BASE_URL:-https://cloud.langfuse.com}
+      LANGFUSE_TRACING_ENVIRONMENT: ${LANGFUSE_TRACING_ENVIRONMENT:-development}
+      LANGFUSE_RELEASE: ${LANGFUSE_RELEASE:-pg-airlines-local}
+      LANGFUSE_SAMPLE_RATE: ${LANGFUSE_SAMPLE_RATE:-1.0}
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-pg-airlines}
     volumes:
       - app-data:/lab/data
       - chroma-data:/lab/chroma

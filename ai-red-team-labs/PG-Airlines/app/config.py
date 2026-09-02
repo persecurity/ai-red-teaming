@@ -31,6 +31,7 @@ class Config:
     RAG_TOP_K = int(os.getenv("RAG_TOP_K", "4"))
     PARTNER_GATEWAY_PUBLIC_PORT = int(os.getenv("PARTNER_GATEWAY_PORT", "8000"))
     SCAN_UPLOADS_WITH_GUARD = env_bool("SCAN_UPLOADS_WITH_GUARD", False)
+    LANGFUSE_TRACING_ENABLED = env_bool("LANGFUSE_TRACING_ENABLED", True)
     MAX_CONTENT_LENGTH = int(os.getenv("MAX_UPLOAD_MB", "5")) * 1024 * 1024
     DATABASE = Path(os.getenv("DATABASE_PATH", BASE_DIR / "data" / "lab.db"))
     CHROMA_PATH = Path(os.getenv("CHROMA_PATH", BASE_DIR / "chroma"))

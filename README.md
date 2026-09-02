@@ -1,6 +1,6 @@
 # AI Red Teaming
 
-A self-contained workbench for practicing offensive testing of LLM applications. It pairs a deliberately vulnerable target application with command-line probes that drive that target's chat API and score the results.
+A self-contained workbench for practicing offensive testing of LLM applications. It combines a deliberately vulnerable target, command-line probes, and a reusable methodology that documents how to map an AI application's attack surface before testing it.
 
 Everything runs locally: the target ships as a Docker Compose project with local Ollama models, and the probes are single-binary Go commands. No external AI provider or API key is involved.
 
@@ -12,6 +12,9 @@ Everything runs locally: the target ships as a Docker Compose project with local
 ai-red-teaming/
 ├── ai-red-team-labs/
 │   └── PG-Airlines/     Vulnerable airline support app (Flask + Ollama + RAG + agents + CTF)
+├── ai-red-team-methodology/
+│   ├── 01-reconnaissance/  Theory, practical workflow, templates, and a completed example
+│   └── flashcards/         AI security study deck
 └── tools/               Go probes for driving a chat API and grading responses
     └── cmd/             prompt-fuzzer, injection-classifier, determinism-probe, rate-limit-probe
 ```
@@ -19,7 +22,18 @@ ai-red-teaming/
 Each part has its own README with full detail:
 
 - [ai-red-team-labs/PG-Airlines/README.md](ai-red-team-labs/PG-Airlines/README.md) — lab setup, model profiles, security levels, endpoints
+- [ai-red-team-methodology/README.md](ai-red-team-methodology/README.md) — guided learning path, reconnaissance theory, practical exercises, and assessment templates
 - [tools/README.md](tools/README.md) — probe usage, flags, expected chat API structure
+
+## How the pieces fit together
+
+```mermaid
+flowchart LR
+    M[Methodology<br/>plan and document] --> L[PG-Airlines lab<br/>exercise attack paths]
+    T[Go probes<br/>replay and measure] --> L
+    L --> E[Evidence<br/>responses and findings]
+    E --> M
+```
 
 ## The target: PG-Airlines
 
@@ -33,6 +47,12 @@ A fake airline's support portal, built to expose a realistic slice of the OWASP 
 - **Eight-flag CTF** with level-weighted scoring and a scoreboard
 
 The interesting exercise is not just capturing a flag at level 1, but re-running the same technique as controls stack up and observing where each one actually holds.
+
+## The methodology
+
+The methodology turns ad hoc probing into an evidence-driven assessment. Its first phase covers passive and active reconnaissance across four distinct surfaces: the model, retrieval pipeline, agents and tools, and supporting infrastructure.
+
+Start with the [methodology learning path](ai-red-team-methodology/README.md), use the blank reconnaissance template during an assessment, and compare the result with the completed PG-Airlines example. A CSV flashcard deck is included for review and import into spaced-repetition tools.
 
 ## The probes
 

@@ -6,6 +6,8 @@ from collections import Counter
 import requests
 from flask import current_app
 
+from .observability import observation
+
 
 logger = logging.getLogger(__name__)
 
@@ -62,13 +64,34 @@ def _chunk(text, size=900, overlap=120):
     return [text[start:start + size] for start in range(0, len(text), size - overlap)]
 
 
-def _embed(text):
-    response = requests.post(
-        f"{current_app.config['OLLAMA_BASE_URL']}/api/embed",
-        json={"model": current_app.config["EMBED_MODEL"], "input": text}, timeout=(5, 60),
-    )
-    response.raise_for_status()
-    return response.json()["embeddings"][0]
+def _embed(text, observation_name="embed-query"):
+    model = current_app.config["EMBED_MODEL"]
+    with observation(
+        observation_name,
+        as_type="embedding",
+        input=text,
+        model=model,
+        metadata={"provider": "ollama"},
+    ) as embedding_observation:
+        response = requests.post(
+            f"{current_app.config['OLLAMA_BASE_URL']}/api/embed",
+            json={"model": model, "input": text},
+            timeout=(5, 60),
+        )
+        response.raise_for_status()
+        payload = response.json()
+        embedding = payload["embeddings"][0]
+        embedding_observation.update(
+            output={"dimensions": len(embedding)},
+            model=payload.get("model", model),
+            usage_details={"input": payload.get("prompt_eval_count", 0)},
+            metadata={
+                "provider": "ollama",
+                "load_duration_ns": payload.get("load_duration", 0),
+                "total_duration_ns": payload.get("total_duration", 0),
+            },
+        )
+        return embedding
 
 
 def _collection(group):
@@ -90,7 +113,9 @@ def ensure_index():
             pending = [doc for doc in docs if doc["group"] == group and doc["id"] not in existing]
             for doc in pending:
                 collection.add(
-                    ids=[doc["id"]], embeddings=[_embed(doc["text"])], documents=[doc["text"]],
+                    ids=[doc["id"]],
+                    embeddings=[_embed(doc["text"], "embed-document")],
+                    documents=[doc["text"]],
                     metadatas=[{"source": doc["source"], "group": group}],
                 )
         return True
@@ -141,36 +166,82 @@ def _lexical_retrieve(query, top_k):
 
 
 def retrieve(query, top_k=4):
-    if not should_retrieve(query):
-        return []
-    try:
-        ensure_index()
-        embedding = _embed(query)
-        results = []
-        lexical_scores = _bm25_scores(query, _documents())
-        per_collection = max(1, top_k // 2)
-        for group in ("public", "sensitive"):
-            data = _collection(group).query(query_embeddings=[embedding], n_results=per_collection, include=["documents", "metadatas", "distances"])
-            for chunk_id, text, metadata, distance in zip(
-                data["ids"][0], data["documents"][0], data["metadatas"][0], data["distances"][0]
-            ):
-                vector_score = max(0.0, min(1.0, 1.0 - float(distance)))
-                if vector_score < current_app.config["RAG_MIN_VECTOR_SCORE"]:
-                    continue
-                doc = {"id": chunk_id, "text": text, "source": metadata["source"], "group": group}
-                lexical_score = lexical_scores.get(chunk_id, 0.0)
-                normalized_lexical_score = lexical_score / (lexical_score + 1) if lexical_score else 0.0
-                combined_score = (0.8 * vector_score) + (0.2 * normalized_lexical_score)
-                results.append({
-                    **doc,
-                    "distance": round(float(distance), 4),
-                    "vector_score": round(vector_score, 4),
-                    "bm25_score": round(lexical_score, 4),
-                    "combined_score": round(combined_score, 4),
-                })
-        if results:
-            return sorted(results, key=lambda item: item["combined_score"], reverse=True)[:top_k]
-        return _lexical_retrieve(query, top_k)
-    except Exception as exc:
-        logger.warning("Using lexical RAG fallback: %s", exc)
-        return _lexical_retrieve(query, top_k)
+    with observation(
+        "retrieve-context",
+        as_type="retriever",
+        input={"query": query, "top_k": top_k},
+        metadata={"index": "pg-airlines", "strategy": "hybrid-vector-bm25"},
+    ) as retriever:
+        if not should_retrieve(query):
+            retriever.update(output={"documents": [], "route": "not-applicable"})
+            return []
+        try:
+            ensure_index()
+            embedding = _embed(query)
+            results = []
+            lexical_scores = _bm25_scores(query, _documents())
+            per_collection = max(1, top_k // 2)
+            for group in ("public", "sensitive"):
+                data = _collection(group).query(query_embeddings=[embedding], n_results=per_collection, include=["documents", "metadatas", "distances"])
+                for chunk_id, text, metadata, distance in zip(
+                    data["ids"][0], data["documents"][0], data["metadatas"][0], data["distances"][0]
+                ):
+                    vector_score = max(0.0, min(1.0, 1.0 - float(distance)))
+                    if vector_score < current_app.config["RAG_MIN_VECTOR_SCORE"]:
+                        continue
+                    doc = {"id": chunk_id, "text": text, "source": metadata["source"], "group": group}
+                    lexical_score = lexical_scores.get(chunk_id, 0.0)
+                    normalized_lexical_score = lexical_score / (lexical_score + 1) if lexical_score else 0.0
+                    combined_score = (0.8 * vector_score) + (0.2 * normalized_lexical_score)
+                    results.append({
+                        **doc,
+                        "distance": round(float(distance), 4),
+                        "vector_score": round(vector_score, 4),
+                        "bm25_score": round(lexical_score, 4),
+                        "combined_score": round(combined_score, 4),
+                    })
+            if results:
+                selected = sorted(
+                    results, key=lambda item: item["combined_score"], reverse=True
+                )[:top_k]
+                route = "hybrid"
+            else:
+                selected = _lexical_retrieve(query, top_k)
+                route = "lexical-fallback"
+            retriever.update(
+                output={
+                    "documents": [
+                        {
+                            "id": item.get("id"),
+                            "source": item.get("source"),
+                            "group": item.get("group"),
+                            "vector_score": item.get("vector_score"),
+                            "bm25_score": item.get("bm25_score"),
+                            "combined_score": item.get("combined_score"),
+                        }
+                        for item in selected
+                    ]
+                },
+                metadata={"route": route, "document_count": len(selected)},
+            )
+            return selected
+        except Exception as exc:
+            logger.warning("Using lexical RAG fallback: %s", exc)
+            selected = _lexical_retrieve(query, top_k)
+            retriever.update(
+                output={
+                    "documents": [
+                        {
+                            "id": item.get("id"),
+                            "source": item.get("source"),
+                            "group": item.get("group"),
+                            "bm25_score": item.get("bm25_score"),
+                            "combined_score": item.get("combined_score"),
+                        }
+                        for item in selected
+                    ]
+                },
+                metadata={"route": "lexical-error-fallback", "error": str(exc)},
+                level="WARNING",
+            )
+            return selected

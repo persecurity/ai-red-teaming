@@ -1,8 +1,18 @@
-# AI Application Architecture – Reconnaissance & Enumeration Notes
+# AI Reconnaissance and Enumeration — Theory
 
-Modern AI applications are **multi-layered systems**, not single monolithic models. Each layer exposes different information and therefore represents a separate **reconnaissance/enumeration surface**.
+Modern AI applications are **multi-layered systems**, not single monolithic models. Each layer exposes different information and therefore represents a separate **reconnaissance and enumeration surface**.
 
-## AI Reconnaissance – Passive vs Active & Enumeration Taxonomy
+This guide develops a repeatable mental model for mapping those surfaces before deeper security testing begins. Pair it with the [practical guide](practical-guide.md), then record the evidence in the [reconnaissance template](templates/reconnaissance-template.md).
+
+## Contents
+
+- [Reconnaissance taxonomy](#reconnaissance-taxonomy)
+- [Typical AI application stack](#typical-ai-application-stack)
+- [Model Context Protocol](#model-context-protocol)
+- [Agent-to-Agent communication](#agent-to-agent-communication)
+- [Reconnaissance mental model](#reconnaissance-mental-model)
+
+## Reconnaissance taxonomy
 
 AI reconnaissance can be divided into two complementary approaches:
 
@@ -627,7 +637,7 @@ Signals can include:
 
 ---
 
-## MCP – Model Context Protocol
+## Model Context Protocol
 
 MCP standardizes how AI applications **discover and invoke tools**.
 
@@ -661,7 +671,7 @@ From a reconnaissance perspective, MCP discovery can reveal:
 
 ---
 
-## A2A – Agent-to-Agent
+## Agent-to-Agent communication
 
 A2A enables AI agents to communicate and collaborate, including across organizational boundaries.
 

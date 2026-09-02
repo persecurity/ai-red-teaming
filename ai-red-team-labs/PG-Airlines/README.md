@@ -77,6 +77,26 @@ cp .env.profile-b .env
 
 Calls to the guard, chat model, judge, and embedding model are made sequentially. At level 5, repeat the same output-side challenge under Profile A and Profile B and compare successful captures; the self-judge's correlated failures are intentional. DLP is regex-based and independent of either judge.
 
+## Langfuse tracing
+
+The chat and agent paths emit one Langfuse trace per request. Chat turns are grouped into sessions, authenticated and guest users receive stable pseudonymous IDs, and each trace contains correctly nested retrieval, embedding, generation, guardrail, evaluator, and tool observations. Ollama model names, parameters, token usage, and timing metadata are attached to the relevant generation or embedding.
+
+Create project API keys in Langfuse under **Settings > API Keys**, then set these values in the ignored `.env` file (do not commit real keys):
+
+```dotenv
+LANGFUSE_TRACING_ENABLED=true
+LANGFUSE_SECRET_KEY=sk-lf-...
+LANGFUSE_PUBLIC_KEY=pk-lf-...
+LANGFUSE_BASE_URL=https://cloud.langfuse.com
+LANGFUSE_TRACING_ENVIRONMENT=development
+LANGFUSE_RELEASE=pg-airlines-local
+LANGFUSE_SAMPLE_RATE=1.0
+```
+
+Use the base URL for the region or self-hosted instance that issued the keys. Set `LANGFUSE_TRACING_ENVIRONMENT` to keep development, test, and production data separate; set `LANGFUSE_RELEASE` to a deployment version or commit SHA in real deployments. For high-volume deployments, lower `LANGFUSE_SAMPLE_RATE` from `1.0`.
+
+Sensitive strings are redacted client-side immediately before export, including credentials, common PII formats, private keys, and the lab's CTF flags. Tracing is disabled automatically in the test suite and can be disabled at runtime with `LANGFUSE_TRACING_ENABLED=false`.
+
 ## Security levels
 
 | Level | Added control |

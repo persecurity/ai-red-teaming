@@ -1,13 +1,24 @@
-# Passive Reconnaissance
+# AI Reconnaissance — Practical Guide
 
-## Two Key Techniques
+This guide turns the [reconnaissance theory](theory.md) into a hands-on workflow covering passive research, active enumeration, model fingerprinting, and RAG analysis. Record the resulting evidence in the [reconnaissance template](templates/reconnaissance-template.md). Run these techniques only against systems you own or are explicitly authorized to test.
+
+## Contents
+
+- [Passive reconnaissance](#passive-reconnaissance)
+- [Active reconnaissance](#active-reconnaissance)
+- [Model fingerprinting](#model-fingerprinting)
+- [RAG reconnaissance](#rag-reconnaissance)
+
+## Passive Reconnaissance
+
+### Two Key Techniques
 
 Two key passive techniques include:
 
 - HTTP header analysis to fingerprint AI infrastructure
 - Repository mining to discover AI system configuration and implementation details
 
-### HTTP Header Analysis
+#### HTTP Header Analysis
 
 Generally, passive reconnaissance means you do not directly interact with the target. HTTP header analysis, however, is better described as a low-interaction reconnaissance technique.
 
@@ -78,7 +89,7 @@ The command `curl` is functionally equivalent to submitting input through a web 
 
 In addition to `curl`, we can also use Burp Suite. However, `curl` provides precise control over the request structure, making it especially useful for focused testing and analysis.
 
-### Repository Mining
+#### Repository Mining
 
 Code repositories are one of the highest-value reconnaissance surfaces for AI systems because they expose the building blocks directly: model configurations, tool definitions, prompt templates, embedding settings, and RAG parameters. Unlike conventional applications, AI projects leave behind distinctive artifacts — prompt templates, embedding configs, tool schemas, and references to models and other links in the AI supply chain.
 
@@ -415,7 +426,7 @@ qwen3:8b  (also serves as judge)
 
 ---
 
-# Active Reconnaissance
+## Active Reconnaissance
 
 AI functionality in modern applications is often integrated directly into existing web applications rather than exposed through dedicated network ports. Because of this, traditional port scanning alone may provide limited insight into whether an application uses AI components.
 

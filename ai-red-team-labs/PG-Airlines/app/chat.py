@@ -1,4 +1,5 @@
 import logging
+import os
 import re
 import secrets
 import time
@@ -8,6 +9,7 @@ from flask_login import current_user
 
 from .ctf.flags import FLAGS
 from .db import get_db
+from .observability import observation, request_trace
 from .rag import retrieve
 from .security.dlp import detect_and_redact_pii
 from .security.pipeline import apply_input_controls, apply_output_controls
@@ -38,21 +40,53 @@ def _guest_id():
 
 
 def call_ollama(messages, include_metadata=False):
-    response = requests.post(
-        f"{current_app.config['OLLAMA_BASE_URL']}/api/chat",
-        json={
-            "model": current_app.config["CHAT_MODEL"], "messages": messages, "stream": False,
-            "think": False,
-            "keep_alive": current_app.config["OLLAMA_KEEP_ALIVE"],
-            "options": {"temperature": 0.3, "num_ctx": current_app.config["OLLAMA_NUM_CTX"], "num_predict": 500},
-        }, timeout=(5, 180),
-    )
-    response.raise_for_status()
-    payload = response.json()
-    content = _strip_thinking(payload.get("message", {}).get("content", ""))
-    if include_metadata:
-        return content, payload
-    return content
+    model = current_app.config["CHAT_MODEL"]
+    model_parameters = {
+        "temperature": 0.3,
+        "num_ctx": current_app.config["OLLAMA_NUM_CTX"],
+        "num_predict": 500,
+    }
+    with observation(
+        "generate-chat-response",
+        as_type="generation",
+        input=messages,
+        model=model,
+        model_parameters=model_parameters,
+        metadata={"provider": "ollama"},
+    ) as generation:
+        response = requests.post(
+            f"{current_app.config['OLLAMA_BASE_URL']}/api/chat",
+            json={
+                "model": model,
+                "messages": messages,
+                "stream": False,
+                "think": False,
+                "keep_alive": current_app.config["OLLAMA_KEEP_ALIVE"],
+                "options": model_parameters,
+            },
+            timeout=(5, 180),
+        )
+        response.raise_for_status()
+        payload = response.json()
+        content = _strip_thinking(payload.get("message", {}).get("content", ""))
+        generation.update(
+            output=content,
+            model=payload.get("model", model),
+            usage_details={
+                "input": payload.get("prompt_eval_count", 0),
+                "output": payload.get("eval_count", 0),
+            },
+            metadata={
+                "provider": "ollama",
+                "done_reason": payload.get("done_reason", "stop"),
+                "load_duration_ns": payload.get("load_duration", 0),
+                "prompt_eval_duration_ns": payload.get("prompt_eval_duration", 0),
+                "eval_duration_ns": payload.get("eval_duration", 0),
+            },
+        )
+        if include_metadata:
+            return content, payload
+        return content
 
 
 def _challenge_awards(message, response, upload_text, level):
@@ -103,15 +137,30 @@ def _source_payload(document, level):
     }
 
 
-def _chat_response(expose_backend_metadata=False):
+def _chat_session_id():
+    session_id = session.get("langfuse_chat_session_id")
+    if not session_id:
+        session_id = secrets.token_urlsafe(18)
+        session["langfuse_chat_session_id"] = session_id
+    return session_id
+
+
+def _chat_identity():
+    if current_user.is_authenticated:
+        return f"account:{current_user.id}", _chat_session_id()
+    return f"guest:{_guest_id()}", _chat_session_id()
+
+
+def _run_chat_turn(message, expose_backend_metadata, root):
     started = time.perf_counter()
-    body = request.get_json(silent=True) or {}
-    message = str(body.get("message", body.get("query", ""))).strip()[:4000]
-    if not message:
-        return jsonify(success=False, error="Message is required."), 400
     level = current_app.config["SECURITY_LEVEL"]
     filtered, error = apply_input_controls(message, level)
     if error:
+        root.update(
+            output={"blocked": True, "reason": error},
+            level="WARNING",
+            metadata={"security_level": level, "blocked_stage": "input"},
+        )
         return jsonify(success=False, error=error, input_blocked=True), 400
 
     db = get_db()
@@ -143,6 +192,11 @@ def _chat_response(expose_backend_metadata=False):
         raw = _strip_thinking(raw)
     except requests.exceptions.RequestException as exc:
         logger.error("Ollama chat failed: %s", exc)
+        root.update(
+            output={"error": "local model unavailable"},
+            level="ERROR",
+            status_message=str(exc),
+        )
         return jsonify(success=False, error="The local model is unavailable. Check Ollama health and model installation."), 503
     generation_time_ms = round((time.perf_counter() - generation_started) * 1000, 2)
     logger.info("OLLAMA RAW RESPONSE (length %s): %s", len(raw), raw)
@@ -167,6 +221,17 @@ def _chat_response(expose_backend_metadata=False):
         "generation_time_ms": generation_time_ms,
         "total_time_ms": latency_ms,
     }
+    root.update(
+        output=output,
+        metadata={
+            "security_level": level,
+            "document_count": len(documents),
+            "output_blocked": meta["output_blocked"],
+            "pii_redacted": meta["pii_redacted"],
+            **retrieval_info,
+        },
+        level="WARNING" if meta["output_blocked"] else "DEFAULT",
+    )
     if expose_backend_metadata:
         return jsonify(
             content=output,
@@ -178,6 +243,32 @@ def _chat_response(expose_backend_metadata=False):
         success=not meta["output_blocked"], answer=output, response=output, sources=sources,
         retrieval_info=retrieval_info, level=level, response_time_ms=latency_ms, **meta,
     )
+
+
+def _chat_response(expose_backend_metadata=False):
+    body = request.get_json(silent=True) or {}
+    message = str(body.get("message", body.get("query", ""))).strip()[:4000]
+    if not message:
+        return jsonify(success=False, error="Message is required."), 400
+
+    user_id, session_id = _chat_identity()
+    level = current_app.config["SECURITY_LEVEL"]
+    route_name = "assistant-v2" if expose_backend_metadata else "chat-api"
+    with request_trace(
+        name="chat-response",
+        as_type="chain",
+        input={"message": message},
+        user_id=user_id,
+        session_id=session_id,
+        tags=["chat", route_name, f"security-level-{level}"],
+        metadata={
+            "route": request.path,
+            "securitylevel": str(level),
+            "modelprofile": os.getenv("MODEL_PROFILE", "unspecified"),
+            "authenticated": str(current_user.is_authenticated).lower(),
+        },
+    ) as root:
+        return _run_chat_turn(message, expose_backend_metadata, root)
 
 
 @bp.post("/api/chat")
@@ -200,4 +291,5 @@ def reset_chat():
     elif session.get("guest_chat_id"):
         db.execute("DELETE FROM guest_chat_messages WHERE guest_id=?", (session["guest_chat_id"],))
     db.commit()
+    session.pop("langfuse_chat_session_id", None)
     return jsonify(success=True)

@@ -1,6 +1,6 @@
-# AI Application Reconnaissance Template — FILLED: PG-Airlines Lab
+# PG-Airlines Reconnaissance — Completed Example
 
-### Recon posture — the two orthogonal axes
+## Recon posture — the two orthogonal axes
 
 - Reading lab source = **passive + white-box** (touches no runtime).
 - Probing the live endpoints = **active** against the same white-box knowledge.
