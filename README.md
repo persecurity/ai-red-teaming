@@ -52,8 +52,6 @@ The interesting exercise is not just capturing a flag at level 1, but re-running
 
 The methodology turns ad hoc probing into an evidence-driven assessment. Its first phase covers passive and active reconnaissance across four distinct surfaces: the model, retrieval pipeline, agents and tools, and supporting infrastructure.
 
-Start with the [methodology learning path](ai-red-team-methodology/README.md), use the blank reconnaissance template during an assessment, and compare the result with the completed PG-Airlines example. A CSV flashcard deck is included for review and import into spaced-repetition tools.
-
 ## The probes
 
 Four Go commands under [tools/cmd/](tools/cmd/), all speaking the same JSON chat API (`http://localhost:5001/api/chat` by default):
