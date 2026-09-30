@@ -1,0 +1,26 @@
+# promptfoo eval results: prompts, outputs and config are embedded (CLAUDE.md, No Tracked Outputs)
+**/evals/outputs/
+/promptfoo-rulebook
+
+# promptfoo harness: kept local, not tracked
+# Claude Code orchestration (skills, hook, constitution, workflows)
+/.claude/
+/CLAUDE.md
+/AI-WORKFLOWS.md
+# lint and CI gate scripts
+/scripts/
+# promptfoo rulebook (sources 01-04 and course notes)
+/ai-red-team-methodology/promptfoo-rulebook/
+# lab eval trees, configs, docs and logs
+**/evals/
+**/promptfooconfig.yaml
+**/promptfoo.*.yaml
+**/PROMPTFOO_EVALUATIONS.md
+**/promptfoo-errors.log
+**/.promptfoo/
+# pinned promptfoo toolchain (Node)
+/ai-red-team-labs/*/package.json
+/ai-red-team-labs/*/package-lock.json
+/ai-red-team-labs/*/.npmrc
+/ai-red-team-labs/*/.nvmrc
+**/node_modules/

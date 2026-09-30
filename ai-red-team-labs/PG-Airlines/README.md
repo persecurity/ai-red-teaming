@@ -117,10 +117,12 @@ Controls are cumulative. L4 and L5 deliberately fail open if the local classifie
 - Chat routes PG-Airlines/company questions to RAG and leaves general-knowledge questions on the base model. Relevant chunks come from `rag_corpus/public` and `rag_corpus/sensitive`; Chroma uses `nomic-embed-text`, a BM25 fallback keeps the app inspectable if embeddings are temporarily unavailable, and low-relevance vector hits are discarded.
 - RAG responses cite source filenames in the generated answer and expose chunk text plus vector, BM25, and combined relevance scores in `sources`. Non-RAG responses return `sources: []`; `retrieval_info` reports retrieval, generation, and total timings.
 - A text-based boarding-pass PDF can be uploaded. Only text is extracted, capped at 5 MB, and stored per user in SQLite for later turns. No PDF content is executed or retained.
-- The client discount agent lets an LLM “verify” complaints before invoking an over-authorized discount tool.
-- The admin promotion agent can set a promotion or access an internal master-code tool.
+- The client discount agent uses a bounded ReAct loop: it can read the filed complaint, then issue an over-authorized discount. The tool result is returned to the model before the request ends.
+- The admin promotion agent uses the same loop: it can read recent complaints or the admin boarding pass, then set a promotion or retrieve an internal master code. Retrieved text is untrusted and can influence later tool choices in this intentionally vulnerable lab.
 - `POST /api/ctf/submit` validates captures. A flag's base score is multiplied by the active level, and a later higher-level capture upgrades the record.
 - `/scoreboard` shows masked capture IDs and totals but never flag values.
+
+Each agent request allows one tool call per model turn, at most four tool calls and five model turns. Unknown or malformed calls are rejected, and a consequential tool can execute only once per request. The routes and response fields remain unchanged. Langfuse records each model invocation and tool action separately under one request trace; private model reasoning is not exposed.
 
 The challenge has no capability or instruction to attack systems outside this Compose project.
 
@@ -131,6 +133,42 @@ The fast test suite does not need Ollama or model downloads:
 ```sh
 python -m pytest -q
 ```
+
+### Promptfoo evaluations
+
+Promptfoo exercises the running chatbot through its public HTTP API. Node.js 24
+is pinned in `.nvmrc`, and Promptfoo is installed as a project-local development
+dependency so every checkout uses the version recorded in `package-lock.json`.
+
+Install the JavaScript dependencies once:
+
+```sh
+nvm use
+npm ci
+```
+
+Start PG-Airlines in another terminal, then run the functional RAG checks:
+
+```sh
+./run.sh
+npm run eval
+```
+
+The separate security suite describes the behavior expected at defense level 5:
+
+```sh
+SECURITY_LEVEL=5 ./run.sh
+npm run eval:security
+```
+
+Running that suite against level 1 is useful too: failed assertions expose the
+lab's intentional data-disclosure weaknesses. Validate configuration without
+calling the model with `npm run eval:validate`, and inspect saved results in the
+local Promptfoo web UI with `npm run eval:view`.
+
+See [PROMPTFOO_EVALUATIONS.md](PROMPTFOO_EVALUATIONS.md) for a step-by-step
+guide to designing test cases, selecting assertions, and adding RAG and security
+evaluations.
 
 For a full manual run, verify public RAG answers, each level transition, a PDF upload, both role-specific agents, flag submission, and scoreboard updates. Raw model output is written only to local container logs so instructors can compare it with moderated output.
 
@@ -182,7 +220,19 @@ seeded account.
 ```
 
 For curl-oriented exercises, `query` is accepted as an alias for `message`. The response includes
-both the legacy `response` field and an `answer` alias:
+both the legacy `response` field and an `answer` alias, plus a UUID `session_id`.
+Send that ID with the next request to continue the same guest conversation without a cookie:
+
+```json
+{
+  "message": "What about checked bags?",
+  "session_id": "2d7d9947-6f46-4fab-a92f-9706fc4e3be0"
+}
+```
+
+Treat a guest session ID as a bearer token: anyone with it can continue that guest conversation.
+The browser can also keep using its session cookie. `POST /api/v2/assistant` returns the same
+`session_id` field. For example:
 
 ```sh
 curl -s -X POST http://127.0.0.1:5001/api/chat \

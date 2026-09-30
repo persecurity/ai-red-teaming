@@ -3,6 +3,8 @@ import os
 import re
 import secrets
 import time
+import uuid
+
 import requests
 from flask import Blueprint, current_app, jsonify, request, session
 from flask_login import current_user
@@ -140,7 +142,7 @@ def _source_payload(document, level):
 def _chat_session_id():
     session_id = session.get("langfuse_chat_session_id")
     if not session_id:
-        session_id = secrets.token_urlsafe(18)
+        session_id = str(uuid.uuid4())
         session["langfuse_chat_session_id"] = session_id
     return session_id
 
@@ -151,7 +153,7 @@ def _chat_identity():
     return f"guest:{_guest_id()}", _chat_session_id()
 
 
-def _run_chat_turn(message, expose_backend_metadata, root):
+def _run_chat_turn(message, expose_backend_metadata, root, session_id):
     started = time.perf_counter()
     level = current_app.config["SECURITY_LEVEL"]
     filtered, error = apply_input_controls(message, level)
@@ -235,12 +237,14 @@ def _run_chat_turn(message, expose_backend_metadata, root):
     if expose_backend_metadata:
         return jsonify(
             content=output,
+            session_id=session_id,
             metadata=_ollama_metadata(ollama_payload, latency_ms),
             sources=sources,
             retrieval_info=retrieval_info,
         )
     return jsonify(
-        success=not meta["output_blocked"], answer=output, response=output, sources=sources,
+        success=not meta["output_blocked"], answer=output, response=output,
+        session_id=session_id, sources=sources,
         retrieval_info=retrieval_info, level=level, response_time_ms=latency_ms, **meta,
     )
 
@@ -250,6 +254,20 @@ def _chat_response(expose_backend_metadata=False):
     message = str(body.get("message", body.get("query", ""))).strip()[:4000]
     if not message:
         return jsonify(success=False, error="Message is required."), 400
+
+    requested_session_id = body.get("session_id")
+    if requested_session_id is not None:
+        try:
+            parsed_session_id = uuid.UUID(requested_session_id)
+            if str(parsed_session_id) != requested_session_id:
+                raise ValueError
+        except (AttributeError, TypeError, ValueError):
+            return jsonify(success=False, error="session_id must be a UUID."), 400
+        if not current_user.is_authenticated:
+            session["guest_chat_id"] = requested_session_id
+        session["langfuse_chat_session_id"] = requested_session_id
+    elif not current_user.is_authenticated and not session.get("guest_chat_id"):
+        session["guest_chat_id"] = _chat_session_id()
 
     user_id, session_id = _chat_identity()
     level = current_app.config["SECURITY_LEVEL"]
@@ -268,7 +286,7 @@ def _chat_response(expose_backend_metadata=False):
             "authenticated": str(current_user.is_authenticated).lower(),
         },
     ) as root:
-        return _run_chat_turn(message, expose_backend_metadata, root)
+        return _run_chat_turn(message, expose_backend_metadata, root, session_id)
 
 
 @bp.post("/api/chat")
@@ -292,4 +310,5 @@ def reset_chat():
         db.execute("DELETE FROM guest_chat_messages WHERE guest_id=?", (session["guest_chat_id"],))
     db.commit()
     session.pop("langfuse_chat_session_id", None)
+    session.pop("guest_chat_id", None)
     return jsonify(success=True)

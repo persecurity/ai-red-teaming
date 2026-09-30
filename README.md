@@ -14,7 +14,10 @@ ai-red-teaming/
 │   └── PG-Airlines/     Vulnerable airline support app (Flask + Ollama + RAG + agents + CTF)
 ├── ai-red-team-methodology/
 │   ├── 01-reconnaissance/  Theory, practical workflow, templates, and a completed example
-│   └── flashcards/         AI security study deck
+│   ├── flashcards/         AI security study deck
+│   └── promptfoo-rulebook/ Sources and decisions behind the promptfoo harness
+├── CLAUDE.md, AI-WORKFLOWS.md, .claude/   Agentic promptfoo harness (rules, skills, hook)
+├── scripts/             Drift lints and CI gate scripts for the harness
 └── tools/               Go probes for driving a chat API and grading responses
     └── cmd/             prompt-fuzzer, injection-classifier, determinism-probe, rate-limit-probe
 ```
@@ -96,6 +99,104 @@ go run ./cmd/injection-classifier results.csv
 Then raise the level through the admin dashboard (or `POST /api/config/level`) and replay the same corpus to see which techniques survive.
 
 Shut the lab down with `docker compose down`, or `docker compose down -v` to also drop the Chroma index and downloaded models.
+
+## Agentic promptfoo harness
+
+AI-assisted eval and red team work in this repo follows a rulebook that Claude Code loads automatically:
+
+- **`CLAUDE.md`**: the Constitution (23 MUST, 9 SHOULD, 13 WON'T rules, each with a source citation) and the Skills Index.
+- **`.claude/skills/`**: ten skills. `eval-workflow` is the router with a confidence gate; the rest cover config, tests, assertions, model-graded, red team, agents, triage, CI and codegen.
+- **`AI-WORKFLOWS.md`**: step sequences for common tasks.
+- **`.claude/scripts/enforce_constitution.py`**: a `PreToolUse` hook that blocks the mechanically detectable violations.
+- **`scripts/check-*.sh`**: lints that keep the rules, skills and links in sync.
+
+The rules come from [`ai-red-team-methodology/promptfoo-rulebook/`](ai-red-team-methodology/promptfoo-rulebook/) (sources `01`–`03`, decisions `04`). The worked example is [`ai-red-team-labs/PG-Airlines/evals/`](ai-red-team-labs/PG-Airlines/evals/).
+
+### Without the rulebook vs with it
+
+The request is the same in both columns: *"write an eval for the refund answers"*.
+
+<table>
+<tr><th>Unsupervised</th><th>Constitution-compliant</th></tr>
+<tr><td>
+
+```yaml
+providers:
+  - id: ollama:chat:qwen3:latest
+    config:
+      apiKey: sk-XXXX
+tests:
+  - vars:
+      question: How long do refunds take?
+    assert:
+      - type: equals
+        value: Refunds take 7-10 business days.
+      - type: llm-rubric
+        value: Answer is helpful
+outputPath: results.json
+```
+
+</td><td>
+
+```yaml
+# configs/refunds.eval.yaml
+providers:
+  - id: http
+    label: pg-airlines-chat
+    config:
+      url: http://127.0.0.1:5001/api/chat
+      body: { message: '{{prompt}}' }
+      transformResponse: json.answer
+      validateStatus: 'status >= 200 && status < 300'
+defaultTest: file://../shared/judge.default-test.yaml
+tests: file://../datasets/refunds.tests.yaml
+```
+
+```yaml
+# datasets/refunds.tests.yaml (one of the matrix cases)
+- description: "single-turn / refunds / happy"
+  metadata: { area: retrieval, suite: single-turn, path: happy, risk: medium }
+  vars: { question: How long does a refund take? }
+  assert:
+    - type: icontains
+      value: original payment method
+      metric: retrieval
+    - type: javascript
+      value: /7\s*(?:-|to)\s*10\s+business days/i.test(output)
+      metric: retrieval
+    # why-not-deterministic: tone has no fixed string
+    - type: llm-rubric
+      value: file://../rubrics/refund-tone.rubric.txt
+      threshold: 1
+      weight: 0
+      metric: ux-style
+```
+
+</td></tr>
+</table>
+
+What changed, and which rule forced it:
+
+| Unsupervised | Rule | Enforced by |
+| --- | --- | --- |
+| `qwen3:latest` | **No Floating Aliases** | hook |
+| `apiKey: sk-…` | **No Literal Secrets** | hook |
+| `llm-rubric` with no `threshold` (a judge that omits `pass` counts as a pass) | **No Thresholdless Rubric** | hook |
+| `outputPath: results.json` in the repo | **No Tracked Outputs** | hook |
+| `equals` on a sentence | **No Free-Text Equals** → `icontains` + `regex` | `assertions` skill |
+| No judge set, so the target grades itself | **Explicit Judge**, **Judge Differs From Target** (Qwen3 8B judge; Profile B target) | `model-graded` skill, gate script |
+| Uncalibrated rubric gating the merge | **Calibrated Rubrics** → `weight: 0` until ≥ 30 labeled rows at ≥ 90% agreement | `model-graded` skill |
+| One happy-path test, no labels, no metrics | **Labeled Tests**, **Full Path Coverage**, **Named Metrics** | `test-design`, `assertions` |
+| No target label, status check or response transform | **Target Hygiene** | `config-structure` |
+| "Done" after one green run | **Negative Control**, **Gated Merges** (`scripts/ci/eval-gate.sh`) | gate script |
+
+Run the checks:
+
+```sh
+.claude/scripts/run-hook-fixtures.sh
+scripts/check-rules-drift.sh && scripts/check-skill-index.sh && scripts/check-skill-references.sh
+scripts/ci/eval-gate.sh --target-model echo ai-red-team-labs/PG-Airlines/evals/configs/smoke.eval.yaml
+```
 
 ## Handling results
 

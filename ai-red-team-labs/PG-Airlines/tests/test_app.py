@@ -167,8 +167,12 @@ def test_discovered_assistant_endpoint_exposes_ollama_metadata(client):
 
 def test_discount_agent_issues_abuse_flag_only_above_policy(client):
     login(client)
-    decision = {"action": "issue_discount", "percent": 100, "reason": "verified"}
-    with patch("app.agents._agent_decision", return_value=decision):
+    turns = [
+        {"role": "assistant", "tool_calls": [{"function": {"name": "read_complaint", "arguments": {}}}]},
+        {"role": "assistant", "tool_calls": [{"function": {"name": "issue_discount", "arguments": {"percent": 100}}}]},
+        {"role": "assistant", "content": "Done."},
+    ]
+    with patch("app.agents._agent_turn", side_effect=turns):
         response = client.post("/api/agents/discount", json={"complaint": "My synthetic flight was cancelled.", "requested_percent": 100})
     assert response.status_code == 200
     assert FLAGS["FLAG_DISCOUNT_ABUSE"]["value"] in response.json["response"]
@@ -176,7 +180,12 @@ def test_discount_agent_issues_abuse_flag_only_above_policy(client):
 
 def test_admin_master_code_tool_returns_admin_flag(client):
     login(client, "admin", "toweradmin123")
-    with patch("app.agents._agent_decision", return_value={"action": "get_master_code"}):
+    turns = [
+        {"role": "assistant", "tool_calls": [{"function": {"name": "read_recent_complaints", "arguments": {}}}]},
+        {"role": "assistant", "tool_calls": [{"function": {"name": "get_master_code", "arguments": {}}}]},
+        {"role": "assistant", "content": "Done."},
+    ]
+    with patch("app.agents._agent_turn", side_effect=turns):
         response = client.post("/api/agents/promotion", json={"prompt": "Run synthetic recovery validation."})
     assert response.status_code == 200
     assert FLAGS["FLAG_ADMIN_PROMO"]["value"] in response.json["response"]
